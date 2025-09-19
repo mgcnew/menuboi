@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { MenuImage } from "./Dashboard";
 import { supabase } from "@/integrations/supabase/client";
-import { ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
+import { ChevronLeft, ChevronRight, Pause, Play, RefreshCw } from "lucide-react";
 
 const Slideshow = () => {
   const [images, setImages] = useState<MenuImage[]>([]);
@@ -15,21 +15,8 @@ const Slideshow = () => {
   }, []);
 
   const loadImagesAndSettings = async () => {
-    // First try localStorage
-    const savedImages = localStorage.getItem('menuboard-images');
-
-    if (savedImages) {
-      try {
-        const parsedImages = JSON.parse(savedImages);
-        setImages(parsedImages.sort((a: MenuImage, b: MenuImage) => a.order - b.order));
-        return; // If localStorage has images, use them
-      } catch (e) {
-        console.error('Error loading images from localStorage:', e);
-      }
-    }
-
-    // Fallback to Supabase if localStorage is empty
     try {
+      // Load directly from Supabase for real-time data
       const { data, error } = await supabase
         .from('menu_images')
         .select('*')
@@ -51,12 +38,16 @@ const Slideshow = () => {
           transitionType: img.transition_type
         }));
         setImages(formattedImages);
-        // Save to localStorage for future use
-        localStorage.setItem('menuboard-images', JSON.stringify(formattedImages));
+      } else {
+        setImages([]);
       }
     } catch (error) {
       console.error('Error connecting to Supabase:', error);
     }
+  };
+
+  const handleReloadImages = () => {
+    loadImagesAndSettings();
   };
 
   // Auto-advance slideshow with individual timing
@@ -73,23 +64,27 @@ const Slideshow = () => {
     return () => clearInterval(interval);
   }, [isPlaying, images, currentImageIndex]);
 
-  // Listen for real-time updates
+  // Listen for real-time updates from Supabase
   useEffect(() => {
-    const handleStorageChange = () => {
-      const savedImages = localStorage.getItem('menuboard-images');
-      
-      if (savedImages) {
-        try {
-          const parsedImages = JSON.parse(savedImages);
-          setImages(parsedImages.sort((a: MenuImage, b: MenuImage) => a.order - b.order));
-        } catch (e) {
-          console.error('Error loading updated images:', e);
+    const channel = supabase
+      .channel('schema-db-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Listen to all events (INSERT, UPDATE, DELETE)
+          schema: 'public',
+          table: 'menu_images'
+        },
+        (payload) => {
+          console.log('Real-time update received:', payload);
+          loadImagesAndSettings(); // Reload images when changes occur
         }
-      }
-    };
+      )
+      .subscribe();
 
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   // Show/hide controls on mouse movement
@@ -138,6 +133,11 @@ const Slideshow = () => {
         case 'P':
           e.preventDefault();
           togglePlayPause();
+          break;
+        case 'r':
+        case 'R':
+          e.preventDefault();
+          handleReloadImages();
           break;
         case 'Escape':
           setShowControls(!showControls);
@@ -216,14 +216,24 @@ const Slideshow = () => {
           <ChevronRight className="h-6 w-6" />
         </button>
 
-        {/* Play/Pause button */}
-        <button
-          onClick={togglePlayPause}
-          className="absolute bottom-8 right-8 bg-slideshow-overlay/50 text-slideshow-text p-4 rounded-full hover:bg-slideshow-overlay/75 transition-colors"
-          aria-label={isPlaying ? "Pausar" : "Reproduzir"}
-        >
-          {isPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6" />}
-        </button>
+        {/* Play/Pause and Reload buttons */}
+        <div className="absolute bottom-8 right-8 flex gap-3">
+          <button
+            onClick={handleReloadImages}
+            className="bg-slideshow-overlay/50 text-slideshow-text p-4 rounded-full hover:bg-slideshow-overlay/75 transition-colors"
+            aria-label="Recarregar imagens"
+          >
+            <RefreshCw className="h-6 w-6" />
+          </button>
+          
+          <button
+            onClick={togglePlayPause}
+            className="bg-slideshow-overlay/50 text-slideshow-text p-4 rounded-full hover:bg-slideshow-overlay/75 transition-colors"
+            aria-label={isPlaying ? "Pausar" : "Reproduzir"}
+          >
+            {isPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6" />}
+          </button>
+        </div>
 
         {/* Image info */}
         <div className="absolute bottom-8 left-8 text-slideshow-text">
@@ -255,7 +265,7 @@ const Slideshow = () => {
       {/* Instructions overlay (shows briefly on load) */}
       <div className="absolute top-4 left-1/2 -translate-x-1/2 text-slideshow-text text-center opacity-60">
         <p className="text-sm">
-          Pressione ESC para mostrar/esconder controles • Setas para navegar • P para pausar
+          Pressione ESC para mostrar/esconder controles • Setas para navegar • P para pausar • R para recarregar
         </p>
       </div>
     </div>
