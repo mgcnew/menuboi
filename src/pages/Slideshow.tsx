@@ -1,14 +1,55 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { MenuImage } from "./Dashboard";
 import { supabase } from "@/integrations/supabase/client";
-import { ChevronLeft, ChevronRight, Pause, Play, RefreshCw } from "lucide-react";
+import { ChevronLeft, ChevronRight, Pause, Play, RefreshCw, Loader2 } from "lucide-react";
 
 const Slideshow = () => {
   const [images, setImages] = useState<MenuImage[]>([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
-  
   const [showControls, setShowControls] = useState(false);
+  const [loadedImages, setLoadedImages] = useState<Set<string>>(new Set());
+  const [loadingImages, setLoadingImages] = useState<Set<string>>(new Set());
+  const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
+
+  // Preload images for better performance
+  const preloadImage = useCallback((url: string) => {
+    if (loadedImages.has(url) || loadingImages.has(url) || failedImages.has(url)) {
+      return;
+    }
+
+    setLoadingImages(prev => new Set(prev).add(url));
+    
+    const img = new Image();
+    img.onload = () => {
+      setLoadedImages(prev => new Set(prev).add(url));
+      setLoadingImages(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(url);
+        return newSet;
+      });
+    };
+    img.onerror = () => {
+      setFailedImages(prev => new Set(prev).add(url));
+      setLoadingImages(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(url);
+        return newSet;
+      });
+    };
+    img.src = url;
+  }, [loadedImages, loadingImages, failedImages]);
+
+  // Preload current and next images
+  useEffect(() => {
+    if (images.length === 0) return;
+    
+    // Preload current image and next 2 images
+    for (let i = 0; i < Math.min(3, images.length); i++) {
+      const imageIndex = (currentImageIndex + i) % images.length;
+      preloadImage(images[imageIndex].url);
+    }
+  }, [images, currentImageIndex, preloadImage]);
 
   useEffect(() => {
     loadImagesAndSettings();
@@ -38,6 +79,10 @@ const Slideshow = () => {
           transitionType: img.transition_type
         }));
         setImages(formattedImages);
+        // Reset loading states when images change
+        setLoadedImages(new Set());
+        setLoadingImages(new Set());
+        setFailedImages(new Set());
       } else {
         setImages([]);
       }
@@ -170,27 +215,56 @@ const Slideshow = () => {
 
   const currentImage = images[currentImageIndex];
 
-  return (
-    <div className="slideshow-container">
-      {/* Images with Transitions */}
-      {images.map((image, index) => {
-        const isActive = index === currentImageIndex;
-        const transitionClass = isActive 
-          ? `slideshow-image entering-${image.transitionType || 'fade'}`
-          : 'slideshow-image opacity-0';
+  const renderImage = (image: MenuImage, index: number) => {
+    const isActive = index === currentImageIndex;
+    const isLoaded = loadedImages.has(image.url);
+    const isLoading = loadingImages.has(image.url);
+    const hasFailed = failedImages.has(image.url);
+    
+    // Only render current image and next image for better performance
+    const shouldRender = isActive || index === (currentImageIndex + 1) % images.length;
+    
+    if (!shouldRender) return null;
+
+    const transitionClass = isActive 
+      ? `slideshow-image entering-${image.transitionType || 'fade'}`
+      : 'slideshow-image opacity-0';
+
+    return (
+      <div key={image.id} className={transitionClass} style={{ zIndex: isActive ? 2 : 1 }}>
+        {isLoading && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+            <Loader2 className="h-8 w-8 animate-spin text-white" />
+          </div>
+        )}
         
-        return (
+        {hasFailed ? (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/80 text-white">
+            <div className="text-center">
+              <div className="text-4xl mb-2">⚠️</div>
+              <p>Erro ao carregar imagem</p>
+              <p className="text-sm opacity-75">{image.name}</p>
+            </div>
+          </div>
+        ) : (
           <img
-            key={image.id}
             src={image.url}
             alt={image.name}
-            className={transitionClass}
-            style={{
-              zIndex: isActive ? 2 : 1
+            className="w-full h-full object-cover"
+            style={{ 
+              opacity: isLoaded ? 1 : 0,
+              transition: 'opacity 0.3s ease-in-out'
             }}
           />
-        );
-      })}
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div className="slideshow-container">
+      {/* Optimized Images - Only render current and next */}
+      {images.map(renderImage)}
 
       {/* Overlay gradient for better text visibility */}
       <div className="absolute inset-0 bg-gradient-to-t from-slideshow-overlay/20 to-transparent pointer-events-none" />
