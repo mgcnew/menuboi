@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { MenuImage } from "./Dashboard";
 import { supabase } from "@/integrations/supabase/client";
-import { ChevronLeft, ChevronRight, Pause, Play, RefreshCw, Loader2, Shuffle } from "lucide-react";
+import { ChevronLeft, ChevronRight, Pause, Play, RefreshCw, Loader2 } from "lucide-react";
 
 const Slideshow = () => {
   const [images, setImages] = useState<MenuImage[]>([]);
@@ -11,41 +11,6 @@ const Slideshow = () => {
   const [loadedImages, setLoadedImages] = useState<Set<string>>(new Set());
   const [loadingImages, setLoadingImages] = useState<Set<string>>(new Set());
   const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
-  const [randomTransitions, setRandomTransitions] = useState<string[]>([]);
-  const [useRandomTransitions, setUseRandomTransitions] = useState(true);
-
-  // Available transitions for random mode
-  const availableTransitions = [
-    'fade',
-    'slide-left',
-    'slide-right', 
-    'slide-up',
-    'slide-down',
-    'zoom-in',
-    'zoom-out',
-    'rotate-in',
-    'flip-in',
-    'push-left',
-    'push-right',
-    'wipe-in',
-    'scale-bounce',
-    'slide-diagonal'
-  ];
-
-  // Generate random transitions for all images
-  const generateRandomTransitions = useCallback(() => {
-    return images.map(() => {
-      const randomIndex = Math.floor(Math.random() * availableTransitions.length);
-      return availableTransitions[randomIndex];
-    });
-  }, [images, availableTransitions]);
-
-  // Generate random transitions when images change
-  useEffect(() => {
-    if (images.length > 0) {
-      setRandomTransitions(generateRandomTransitions());
-    }
-  }, [images, generateRandomTransitions]);
 
   // Preload images for better performance
   const preloadImage = useCallback((url: string) => {
@@ -118,8 +83,6 @@ const Slideshow = () => {
         setLoadedImages(new Set());
         setLoadingImages(new Set());
         setFailedImages(new Set());
-        // Generate random transitions for new images
-        setRandomTransitions(generateRandomTransitions());
       } else {
         setImages([]);
       }
@@ -194,14 +157,6 @@ const Slideshow = () => {
     setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
   };
 
-  const toggleRandomTransitions = () => {
-    setUseRandomTransitions(!useRandomTransitions);
-    if (!useRandomTransitions) {
-      // Generate new random transitions when enabling
-      setRandomTransitions(generateRandomTransitions());
-    }
-  };
-
   const togglePlayPause = () => {
     setIsPlaying(!isPlaying);
   };
@@ -228,11 +183,6 @@ const Slideshow = () => {
         case 'R':
           e.preventDefault();
           handleReloadImages();
-          break;
-        case 's':
-        case 'S':
-          e.preventDefault();
-          toggleRandomTransitions();
           break;
         case 'Escape':
           setShowControls(!showControls);
@@ -276,13 +226,8 @@ const Slideshow = () => {
     
     if (!shouldRender) return null;
 
-    // Use random transition if random mode is enabled and available, 
-    // otherwise fallback to image's transition type, then to fade
-    const transitionType = useRandomTransitions && randomTransitions[index] 
-      ? randomTransitions[index] 
-      : image.transitionType || 'fade';
     const transitionClass = isActive 
-      ? `slideshow-image entering-${transitionType}`
+      ? `slideshow-image entering-${image.transitionType || 'fade'}`
       : 'slideshow-image opacity-0';
 
     return (
@@ -345,7 +290,7 @@ const Slideshow = () => {
           <ChevronRight className="h-6 w-6" />
         </button>
 
-        {/* Play/Pause, Random Transitions and Reload buttons */}
+        {/* Play/Pause and Reload buttons */}
         <div className="absolute bottom-8 right-8 flex gap-3">
           <button
             onClick={handleReloadImages}
@@ -353,18 +298,6 @@ const Slideshow = () => {
             aria-label="Recarregar imagens"
           >
             <RefreshCw className="h-6 w-6" />
-          </button>
-
-          <button
-            onClick={toggleRandomTransitions}
-            className={`p-4 rounded-full transition-colors ${
-              useRandomTransitions 
-                ? 'bg-primary/80 text-white hover:bg-primary' 
-                : 'bg-slideshow-overlay/50 text-slideshow-text hover:bg-slideshow-overlay/75'
-            }`}
-            aria-label={useRandomTransitions ? "Desativar transições aleatórias" : "Ativar transições aleatórias"}
-          >
-            <Shuffle className="h-6 w-6" />
           </button>
           
           <button
@@ -406,7 +339,7 @@ const Slideshow = () => {
       {/* Instructions overlay (shows briefly on load) */}
       <div className="absolute top-4 left-1/2 -translate-x-1/2 text-slideshow-text text-center opacity-60">
         <p className="text-sm">
-          ESC: controles • Setas: navegar • P: pausar • R: recarregar • S: transições {useRandomTransitions ? 'aleatórias' : 'fixas'}
+          Pressione ESC para mostrar/esconder controles • Setas para navegar • P para pausar • R para recarregar
         </p>
       </div>
     </div>
