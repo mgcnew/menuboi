@@ -15,11 +15,11 @@ import {
   AlertCircle,
   QrCode
 } from "lucide-react";
-import { MenuImage } from "./Dashboard";
+import { MenuItem } from "./Dashboard";
 import { supabase } from "@/integrations/supabase/client";
 
 const TVPreparation = () => {
-  const [images, setImages] = useState<MenuImage[]>([]);
+  const [images, setImages] = useState<MenuItem[]>([]);
   
   const [isReady, setIsReady] = useState(false);
 
@@ -45,7 +45,7 @@ const TVPreparation = () => {
     // Fallback to Supabase if localStorage is empty
     try {
       const { data, error } = await supabase
-        .from('menu_images')
+        .from('menu_items')
         .select('*')
         .order('order_index', { ascending: true });
 
@@ -55,14 +55,18 @@ const TVPreparation = () => {
       }
 
       if (data && data.length > 0) {
-        const formattedImages = data.map((img: any) => ({
+        const formattedImages: MenuItem[] = data.map((img: any) => ({
           id: img.id,
           url: `https://rsyqznvjpmwoibgohptz.supabase.co/storage/v1/object/public/menu-images/${img.file_path}`,
           name: img.name,
           order: img.order_index,
           uploadedAt: new Date(img.created_at),
           displayTime: img.display_time,
-          transitionType: img.transition_type
+          transitionType: img.transition_type,
+          itemType: img.item_type || 'image',
+          videoAutoplay: img.video_autoplay,
+          videoMuted: img.video_muted,
+          videoLoop: img.video_loop
         }));
         setImages(formattedImages);
         setIsReady(true);

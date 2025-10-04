@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
-import { MenuImage } from "@/pages/Dashboard";
+import { MenuItem } from "@/pages/Dashboard";
 import { Play, Pause, SkipBack, SkipForward } from "lucide-react";
 import { Button } from "./ui/button";
 
 interface SlideshowPreviewProps {
-  images: MenuImage[];
+  images: MenuItem[];
   className?: string;
 }
 
@@ -67,11 +67,22 @@ export const SlideshowPreview = ({ images, className = "" }: SlideshowPreviewPro
       {/* Preview Display */}
       <div className="relative aspect-video bg-slideshow-bg">
         {currentImage && (
-          <img
-            src={currentImage.url}
-            alt={currentImage.name}
-            className="w-full h-full object-cover"
-          />
+          currentImage.itemType === 'video' ? (
+            <video
+              src={currentImage.url}
+              className="w-full h-full object-cover"
+              autoPlay={currentImage.videoAutoplay}
+              muted={currentImage.videoMuted}
+              loop={currentImage.videoLoop}
+              playsInline
+            />
+          ) : (
+            <img
+              src={currentImage.url}
+              alt={currentImage.name}
+              className="w-full h-full object-cover"
+            />
+          )
         )}
         
         {/* Overlay with transition info */}

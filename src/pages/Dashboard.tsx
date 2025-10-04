@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { TransitionType, DEFAULT_DISPLAY_TIME, DEFAULT_TRANSITION_TYPE } from "@/types/slideshow";
 import { supabase } from "@/integrations/supabase/client";
 
-export interface MenuImage {
+export interface MenuItem {
   id: string;
   url: string;
   name: string;
@@ -19,10 +19,17 @@ export interface MenuImage {
   uploadedAt: Date;
   displayTime: number;
   transitionType: TransitionType;
+  itemType: 'image' | 'video';
+  videoAutoplay?: boolean;
+  videoMuted?: boolean;
+  videoLoop?: boolean;
 }
 
+// Backward compatibility alias
+export type MenuImage = MenuItem;
+
 const Dashboard = () => {
-  const [images, setImages] = useState<MenuImage[]>([]);
+  const [images, setImages] = useState<MenuItem[]>([]);
   const [transitionTime, setTransitionTime] = useState(10);
   const { toast } = useToast();
 
@@ -34,7 +41,7 @@ const Dashboard = () => {
   const loadImagesFromSupabase = async () => {
     try {
       const { data, error } = await supabase
-        .from('menu_images')
+        .from('menu_items')
         .select('*')
         .order('order_index', { ascending: true });
 
@@ -46,14 +53,18 @@ const Dashboard = () => {
       }
 
       if (data) {
-        const formattedImages: MenuImage[] = data.map((img: any) => ({
+        const formattedImages: MenuItem[] = data.map((img: any) => ({
           id: img.id,
           url: `https://rsyqznvjpmwoibgohptz.supabase.co/storage/v1/object/public/menu-images/${img.file_path}`,
           name: img.name,
           order: img.order_index,
           uploadedAt: new Date(img.created_at),
           displayTime: img.display_time,
-          transitionType: img.transition_type as TransitionType
+          transitionType: img.transition_type as TransitionType,
+          itemType: img.item_type || 'image',
+          videoAutoplay: img.video_autoplay,
+          videoMuted: img.video_muted,
+          videoLoop: img.video_loop
         }));
         setImages(formattedImages);
         // CRITICAL: Always sync to localStorage after loading from Supabase
@@ -83,14 +94,14 @@ const Dashboard = () => {
     }
   };
 
-  const saveToLocalStorage = (newImages: MenuImage[], newTime?: number) => {
+  const saveToLocalStorage = (newImages: MenuItem[], newTime?: number) => {
     localStorage.setItem('menuboard-images', JSON.stringify(newImages));
     if (newTime !== undefined) {
       localStorage.setItem('menuboard-transition-time', newTime.toString());
     }
   };
 
-  const handleImagesUploaded = async (newImages: MenuImage[]) => {
+  const handleImagesUploaded = async (newImages: MenuItem[]) => {
     try {
       // Insert new images into Supabase
       const imagesToInsert = newImages.map((img, index) => ({
@@ -99,11 +110,15 @@ const Dashboard = () => {
         file_path: img.url.split('/').pop(), // Extract filename from URL
         order_index: images.length + index,
         display_time: DEFAULT_DISPLAY_TIME,
-        transition_type: DEFAULT_TRANSITION_TYPE
+        transition_type: DEFAULT_TRANSITION_TYPE,
+        item_type: img.itemType,
+        video_autoplay: img.videoAutoplay,
+        video_muted: img.videoMuted,
+        video_loop: img.videoLoop
       }));
 
       const { error } = await supabase
-        .from('menu_images')
+        .from('menu_items')
         .insert(imagesToInsert);
 
       if (error) {
@@ -140,7 +155,7 @@ const Dashboard = () => {
       
       // Delete from database
       const { error } = await supabase
-        .from('menu_images')
+        .from('menu_items')
         .delete()
         .eq('id', imageId);
 
@@ -186,7 +201,7 @@ const Dashboard = () => {
     }
   };
 
-  const handleImageReorder = async (reorderedImages: MenuImage[]) => {
+  const handleImageReorder = async (reorderedImages: MenuItem[]) => {
     try {
       // Update order in Supabase
       const updates = reorderedImages.map((img, index) => ({
@@ -196,7 +211,7 @@ const Dashboard = () => {
 
       for (const update of updates) {
         const { error } = await supabase
-          .from('menu_images')
+          .from('menu_items')
           .update({ order_index: update.order_index })
           .eq('id', update.id);
 
@@ -212,13 +227,16 @@ const Dashboard = () => {
     }
   };
 
-  const handleImageUpdate = async (updatedImage: MenuImage) => {
+  const handleImageUpdate = async (updatedImage: MenuItem) => {
     try {
       const { error } = await supabase
-        .from('menu_images')
+        .from('menu_items')
         .update({
           display_time: updatedImage.displayTime,
-          transition_type: updatedImage.transitionType
+          transition_type: updatedImage.transitionType,
+          video_autoplay: updatedImage.videoAutoplay,
+          video_muted: updatedImage.videoMuted,
+          video_loop: updatedImage.videoLoop
         })
         .eq('id', updatedImage.id);
 

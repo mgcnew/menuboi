@@ -1,22 +1,26 @@
 import { useState } from "react";
-import { MenuImage } from "@/pages/Dashboard";
+import { MenuItem } from "@/pages/Dashboard";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "./ui/dialog";
 import { TRANSITION_OPTIONS, TransitionType } from "@/types/slideshow";
+import { VideoConfigSection } from "./VideoConfigSection";
 
 interface ImageConfigModalProps {
-  image: MenuImage | null;
+  image: MenuItem | null;
   isOpen: boolean;
   onClose: () => void;
-  onSave: (updatedImage: MenuImage) => void;
+  onSave: (updatedImage: MenuItem) => void;
 }
 
 export const ImageConfigModal = ({ image, isOpen, onClose, onSave }: ImageConfigModalProps) => {
   const [displayTime, setDisplayTime] = useState(image?.displayTime || 10);
   const [transitionType, setTransitionType] = useState<TransitionType>(image?.transitionType || 'fade');
+  const [videoAutoplay, setVideoAutoplay] = useState(image?.videoAutoplay !== false);
+  const [videoMuted, setVideoMuted] = useState(image?.videoMuted !== false);
+  const [videoLoop, setVideoLoop] = useState(image?.videoLoop || false);
 
   const handleSave = () => {
     if (!image) return;
@@ -24,7 +28,10 @@ export const ImageConfigModal = ({ image, isOpen, onClose, onSave }: ImageConfig
     onSave({
       ...image,
       displayTime,
-      transitionType
+      transitionType,
+      videoAutoplay,
+      videoMuted,
+      videoLoop
     });
     onClose();
   };
@@ -41,11 +48,20 @@ export const ImageConfigModal = ({ image, isOpen, onClose, onSave }: ImageConfig
         <div className="space-y-4">
           {/* Preview */}
           <div className="aspect-video bg-muted rounded-lg overflow-hidden">
-            <img
-              src={image.url}
-              alt={image.name}
-              className="w-full h-full object-cover"
-            />
+            {image.itemType === 'video' ? (
+              <video
+                src={image.url}
+                className="w-full h-full object-cover"
+                muted
+                playsInline
+              />
+            ) : (
+              <img
+                src={image.url}
+                alt={image.name}
+                className="w-full h-full object-cover"
+              />
+            )}
           </div>
 
           <div>
@@ -81,6 +97,18 @@ export const ImageConfigModal = ({ image, isOpen, onClose, onSave }: ImageConfig
               </SelectContent>
             </Select>
           </div>
+
+          {/* Video Settings - Only show for videos */}
+          {image.itemType === 'video' && (
+            <VideoConfigSection
+              videoAutoplay={videoAutoplay}
+              videoMuted={videoMuted}
+              videoLoop={videoLoop}
+              onAutoplayChange={setVideoAutoplay}
+              onMutedChange={setVideoMuted}
+              onLoopChange={setVideoLoop}
+            />
+          )}
         </div>
 
         <DialogFooter>

@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
-import { MenuImage } from "./Dashboard";
+import { MenuItem } from "./Dashboard";
 import { supabase } from "@/integrations/supabase/client";
 import { ChevronLeft, ChevronRight, Pause, Play, RefreshCw, Loader2 } from "lucide-react";
 
 const Slideshow = () => {
-  const [images, setImages] = useState<MenuImage[]>([]);
+  const [images, setImages] = useState<MenuItem[]>([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
   const [showControls, setShowControls] = useState(false);
@@ -59,7 +59,7 @@ const Slideshow = () => {
     try {
       // Load directly from Supabase for real-time data
       const { data, error } = await supabase
-        .from('menu_images')
+        .from('menu_items')
         .select('*')
         .order('order_index', { ascending: true });
 
@@ -76,7 +76,11 @@ const Slideshow = () => {
           order: img.order_index,
           uploadedAt: new Date(img.created_at),
           displayTime: img.display_time,
-          transitionType: img.transition_type
+          transitionType: img.transition_type,
+          itemType: img.item_type || 'image',
+          videoAutoplay: img.video_autoplay !== false,
+          videoMuted: img.video_muted !== false,
+          videoLoop: img.video_loop || false
         }));
         setImages(formattedImages);
         // Reset loading states when images change
@@ -118,7 +122,7 @@ const Slideshow = () => {
         {
           event: '*', // Listen to all events (INSERT, UPDATE, DELETE)
           schema: 'public',
-          table: 'menu_images'
+          table: 'menu_items'
         },
         (payload) => {
           console.log('Real-time update received:', payload);
@@ -215,11 +219,11 @@ const Slideshow = () => {
 
   const currentImage = images[currentImageIndex];
 
-  const renderImage = (image: MenuImage, index: number) => {
+  const renderItem = (item: MenuItem, index: number) => {
     const isActive = index === currentImageIndex;
-    const isLoaded = loadedImages.has(image.url);
-    const isLoading = loadingImages.has(image.url);
-    const hasFailed = failedImages.has(image.url);
+    const isLoaded = loadedImages.has(item.url);
+    const isLoading = loadingImages.has(item.url);
+    const hasFailed = failedImages.has(item.url);
     
     // Only render current image and next image for better performance
     const shouldRender = isActive || index === (currentImageIndex + 1) % images.length;
@@ -227,11 +231,11 @@ const Slideshow = () => {
     if (!shouldRender) return null;
 
     const transitionClass = isActive 
-      ? `slideshow-image entering-${image.transitionType || 'fade'}`
+      ? `slideshow-image entering-${item.transitionType || 'fade'}`
       : 'slideshow-image opacity-0';
 
     return (
-      <div key={image.id} className={transitionClass} style={{ zIndex: isActive ? 2 : 1 }}>
+      <div key={item.id} className={transitionClass} style={{ zIndex: isActive ? 2 : 1 }}>
         {isLoading && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/50">
             <Loader2 className="h-8 w-8 animate-spin text-white" />
@@ -242,14 +246,27 @@ const Slideshow = () => {
           <div className="absolute inset-0 flex items-center justify-center bg-black/80 text-white">
             <div className="text-center">
               <div className="text-4xl mb-2">⚠️</div>
-              <p>Erro ao carregar imagem</p>
-              <p className="text-sm opacity-75">{image.name}</p>
+              <p>Erro ao carregar {item.itemType === 'video' ? 'vídeo' : 'imagem'}</p>
+              <p className="text-sm opacity-75">{item.name}</p>
             </div>
           </div>
+        ) : item.itemType === 'video' ? (
+          <video
+            src={item.url}
+            className="w-full h-full object-cover"
+            autoPlay={item.videoAutoplay}
+            muted={item.videoMuted}
+            loop={item.videoLoop}
+            playsInline
+            style={{ 
+              opacity: isLoaded ? 1 : 0,
+              transition: 'opacity 0.3s ease-in-out'
+            }}
+          />
         ) : (
           <img
-            src={image.url}
-            alt={image.name}
+            src={item.url}
+            alt={item.name}
             className="w-full h-full object-cover"
             style={{ 
               opacity: isLoaded ? 1 : 0,
@@ -263,8 +280,8 @@ const Slideshow = () => {
 
   return (
     <div className="slideshow-container">
-      {/* Optimized Images - Only render current and next */}
-      {images.map(renderImage)}
+      {/* Optimized Items - Only render current and next */}
+      {images.map(renderItem)}
 
       {/* Overlay gradient for better text visibility */}
       <div className="absolute inset-0 bg-gradient-to-t from-slideshow-overlay/20 to-transparent pointer-events-none" />

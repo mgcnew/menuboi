@@ -1,13 +1,13 @@
 import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Upload, X, Image as ImageIcon } from "lucide-react";
-import { MenuImage } from "@/pages/Dashboard";
+import { MenuItem } from "@/pages/Dashboard";
 import { DEFAULT_DISPLAY_TIME, DEFAULT_TRANSITION_TYPE } from "@/types/slideshow";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
 interface ImageUploadProps {
-  onImagesUploaded: (images: MenuImage[]) => void;
+  onImagesUploaded: (images: MenuItem[]) => void;
 }
 
 export const ImageUpload = ({ onImagesUploaded }: ImageUploadProps) => {
@@ -17,22 +17,25 @@ export const ImageUpload = ({ onImagesUploaded }: ImageUploadProps) => {
   const { toast } = useToast();
 
   const processFiles = useCallback(async (files: FileList) => {
-    const validFiles = Array.from(files).filter(file => 
-      file.type.startsWith('image/') && 
-      ['image/jpeg', 'image/png', 'image/webp'].includes(file.type)
-    );
+    const validFiles = Array.from(files).filter(file => {
+      const isImage = file.type.startsWith('image/') && 
+        ['image/jpeg', 'image/png', 'image/webp'].includes(file.type);
+      const isVideo = file.type.startsWith('video/') && 
+        ['video/mp4', 'video/webm', 'video/ogg'].includes(file.type);
+      return isImage || isVideo;
+    });
 
     if (validFiles.length === 0) {
       toast({
         title: "Arquivos inválidos",
-        description: "Por favor, selecione apenas imagens JPG, PNG ou WebP.",
+        description: "Por favor, selecione apenas imagens (JPG, PNG, WebP) ou vídeos (MP4, WebM, OGG).",
         variant: "destructive"
       });
       return;
     }
 
     setIsUploading(true);
-    const newImages: MenuImage[] = [];
+    const newImages: MenuItem[] = [];
     const newPreviews: string[] = [];
 
     try {
@@ -69,14 +72,19 @@ export const ImageUpload = ({ onImagesUploaded }: ImageUploadProps) => {
         };
         reader.readAsDataURL(file);
 
-        const image: MenuImage = {
+        const isVideo = file.type.startsWith('video/');
+        const image: MenuItem = {
           id: crypto.randomUUID(),
           url: publicUrl,
           name: file.name.replace(/\.[^/.]+$/, ""), // Remove extension
           order: Date.now() + i,
           uploadedAt: new Date(),
           displayTime: DEFAULT_DISPLAY_TIME,
-          transitionType: DEFAULT_TRANSITION_TYPE
+          transitionType: DEFAULT_TRANSITION_TYPE,
+          itemType: isVideo ? 'video' : 'image',
+          videoAutoplay: true,
+          videoMuted: true,
+          videoLoop: false
         };
 
         newImages.push(image);
@@ -85,9 +93,16 @@ export const ImageUpload = ({ onImagesUploaded }: ImageUploadProps) => {
       if (newImages.length > 0) {
         onImagesUploaded(newImages);
         setPreviews([]);
+        const imageCount = newImages.filter(img => img.itemType === 'image').length;
+        const videoCount = newImages.filter(img => img.itemType === 'video').length;
+        const description = [
+          imageCount > 0 && `${imageCount} imagem(ns)`,
+          videoCount > 0 && `${videoCount} vídeo(s)`
+        ].filter(Boolean).join(' e ') + ' enviado(s) com sucesso.';
+        
         toast({
           title: "Upload concluído!",
-          description: `${newImages.length} imagem(ns) enviada(s) com sucesso.`,
+          description,
         });
       }
     } catch (error) {
@@ -155,13 +170,13 @@ export const ImageUpload = ({ onImagesUploaded }: ImageUploadProps) => {
           
           <div className="text-center">
             <h3 className="text-lg font-medium mb-2">
-              {isUploading ? 'Processando imagens...' : 'Arraste suas imagens aqui'}
+              {isUploading ? 'Processando arquivos...' : 'Arraste suas imagens ou vídeos aqui'}
             </h3>
             <p className="text-muted-foreground mb-4">
               ou clique para selecionar arquivos
             </p>
             <p className="text-sm text-muted-foreground">
-              Suporte: JPG, PNG, WebP • Máximo: 10MB por arquivo
+              Imagens: JPG, PNG, WebP • Vídeos: MP4, WebM, OGG • Máximo: 10MB
             </p>
           </div>
 
@@ -172,14 +187,14 @@ export const ImageUpload = ({ onImagesUploaded }: ImageUploadProps) => {
             className="bg-background hover:bg-muted"
           >
             <ImageIcon className="mr-2 h-4 w-4" />
-            Selecionar Imagens
+            Selecionar Arquivos
           </Button>
 
           <input
             id="file-input"
             type="file"
             multiple
-            accept="image/jpeg,image/png,image/webp"
+            accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/ogg"
             onChange={handleFileSelect}
             className="hidden"
           />

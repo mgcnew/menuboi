@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { MenuImage } from "@/pages/Dashboard";
+import { MenuItem } from "@/pages/Dashboard";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { Trash2, Eye, GripVertical, Settings } from "lucide-react";
@@ -7,16 +7,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { ImageConfigModal } from "./ImageConfigModal";
 
 interface ImageGridProps {
-  images: MenuImage[];
+  images: MenuItem[];
   onImageDelete: (imageId: string) => void;
-  onImageReorder: (reorderedImages: MenuImage[]) => void;
-  onImageUpdate: (updatedImage: MenuImage) => void;
+  onImageReorder: (reorderedImages: MenuItem[]) => void;
+  onImageUpdate: (updatedImage: MenuItem) => void;
 }
 
 export const ImageGrid = ({ images, onImageDelete, onImageReorder, onImageUpdate }: ImageGridProps) => {
-  const [draggedItem, setDraggedItem] = useState<MenuImage | null>(null);
-  const [previewImage, setPreviewImage] = useState<MenuImage | null>(null);
-  const [configImage, setConfigImage] = useState<MenuImage | null>(null);
+  const [draggedItem, setDraggedItem] = useState<MenuItem | null>(null);
+  const [previewImage, setPreviewImage] = useState<MenuItem | null>(null);
+  const [configImage, setConfigImage] = useState<MenuItem | null>(null);
 
   if (images.length === 0) {
     return (
@@ -34,7 +34,7 @@ export const ImageGrid = ({ images, onImageDelete, onImageReorder, onImageUpdate
 
   const sortedImages = [...images].sort((a, b) => a.order - b.order);
 
-  const handleDragStart = (e: React.DragEvent, image: MenuImage) => {
+  const handleDragStart = (e: React.DragEvent, image: MenuItem) => {
     setDraggedItem(image);
     e.dataTransfer.effectAllowed = 'move';
   };
@@ -44,7 +44,7 @@ export const ImageGrid = ({ images, onImageDelete, onImageReorder, onImageUpdate
     e.dataTransfer.dropEffect = 'move';
   };
 
-  const handleDrop = (e: React.DragEvent, targetImage: MenuImage) => {
+  const handleDrop = (e: React.DragEvent, targetImage: MenuItem) => {
     e.preventDefault();
     
     if (!draggedItem || draggedItem.id === targetImage.id) {
@@ -108,13 +108,22 @@ export const ImageGrid = ({ images, onImageDelete, onImageReorder, onImageUpdate
               <GripVertical className="h-6 w-6 text-white drop-shadow-lg" />
             </div>
 
-            {/* Image */}
+            {/* Media */}
             <div className="aspect-video bg-muted rounded-t-lg overflow-hidden">
-              <img
-                src={image.url}
-                alt={image.name}
-                className="w-full h-full object-cover transition-transform group-hover:scale-105"
-              />
+              {image.itemType === 'video' ? (
+                <video
+                  src={image.url}
+                  className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                  muted
+                  playsInline
+                />
+              ) : (
+                <img
+                  src={image.url}
+                  alt={image.name}
+                  className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                />
+              )}
             </div>
 
             {/* Image info */}
@@ -168,11 +177,19 @@ export const ImageGrid = ({ images, onImageDelete, onImageReorder, onImageUpdate
               <DialogTitle>{previewImage.name}</DialogTitle>
             </DialogHeader>
             <div className="mt-4">
-              <img
-                src={previewImage.url}
-                alt={previewImage.name}
-                className="w-full h-auto max-h-[70vh] object-contain rounded-lg"
-              />
+              {previewImage.itemType === 'video' ? (
+                <video
+                  src={previewImage.url}
+                  controls
+                  className="w-full h-auto max-h-[70vh] rounded-lg"
+                />
+              ) : (
+                <img
+                  src={previewImage.url}
+                  alt={previewImage.name}
+                  className="w-full h-auto max-h-[70vh] object-contain rounded-lg"
+                />
+              )}
             </div>
           </DialogContent>
         </Dialog>
