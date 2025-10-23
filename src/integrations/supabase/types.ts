@@ -14,51 +14,7 @@ export type Database = {
   }
   public: {
     Tables: {
-      menu_items: {
-        Row: {
-          created_at: string
-          display_time: number
-          file_path: string
-          id: string
-          item_type: string
-          name: string
-          order_index: number
-          transition_type: string
-          updated_at: string
-          video_autoplay: boolean | null
-          video_loop: boolean | null
-          video_muted: boolean | null
-        }
-        Insert: {
-          created_at?: string
-          display_time?: number
-          file_path: string
-          id?: string
-          item_type?: string
-          name: string
-          order_index?: number
-          transition_type?: string
-          updated_at?: string
-          video_autoplay?: boolean | null
-          video_loop?: boolean | null
-          video_muted?: boolean | null
-        }
-        Update: {
-          created_at?: string
-          display_time?: number
-          file_path?: string
-          id?: string
-          item_type?: string
-          name?: string
-          order_index?: number
-          transition_type?: string
-          updated_at?: string
-          video_autoplay?: boolean | null
-          video_loop?: boolean | null
-          video_muted?: boolean | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Views: {
       [_ in never]: never
