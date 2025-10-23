@@ -6,10 +6,13 @@ import { Label } from "@/components/ui/label";
 import { ImageUpload } from "@/components/ImageUpload";
 import { ImageGrid } from "@/components/ImageGrid";
 import { SlideshowPreview } from "@/components/SlideshowPreview";
-import { Monitor, Settings, Upload, Play } from "lucide-react";
+import { AudioUpload } from "@/components/AudioUpload";
+import { AudioGrid } from "@/components/AudioGrid";
+import { Monitor, Settings, Upload, Play, Music } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { TransitionType, DEFAULT_DISPLAY_TIME, DEFAULT_TRANSITION_TYPE } from "@/types/slideshow";
+import { TransitionType, DEFAULT_DISPLAY_TIME, DEFAULT_TRANSITION_TYPE, AudioTrack } from "@/types/slideshow";
 import { supabase } from "@/integrations/supabase/client";
+import { menuItemsTable, audioTracksTable } from "@/lib/supabase-helpers";
 
 export interface MenuItem {
   id: string;
@@ -30,18 +33,19 @@ export type MenuImage = MenuItem;
 
 const Dashboard = () => {
   const [images, setImages] = useState<MenuItem[]>([]);
+  const [audios, setAudios] = useState<AudioTrack[]>([]);
   const [transitionTime, setTransitionTime] = useState(10);
   const { toast } = useToast();
 
   useEffect(() => {
     loadImagesFromSupabase();
+    loadAudiosFromSupabase();
     loadTransitionTimeFromLocalStorage();
   }, []);
 
   const loadImagesFromSupabase = async () => {
     try {
-      const { data, error } = await supabase
-        .from('menu_items')
+      const { data, error } = await menuItemsTable()
         .select('*')
         .order('order_index', { ascending: true });
 
@@ -117,8 +121,7 @@ const Dashboard = () => {
         video_loop: img.videoLoop
       }));
 
-      const { error } = await supabase
-        .from('menu_items')
+      const { error } = await menuItemsTable()
         .insert(imagesToInsert);
 
       if (error) {
@@ -153,9 +156,7 @@ const Dashboard = () => {
       // First get the image data to get the file_path for storage deletion
       const imageToDelete = images.find(img => img.id === imageId);
       
-      // Delete from database
-      const { error } = await supabase
-        .from('menu_items')
+      const { error } = await menuItemsTable()
         .delete()
         .eq('id', imageId);
 
@@ -210,8 +211,7 @@ const Dashboard = () => {
       }));
 
       for (const update of updates) {
-        const { error } = await supabase
-          .from('menu_items')
+        const { error } = await menuItemsTable()
           .update({ order_index: update.order_index })
           .eq('id', update.id);
 
@@ -229,15 +229,14 @@ const Dashboard = () => {
 
   const handleImageUpdate = async (updatedImage: MenuItem) => {
     try {
-      const { error } = await supabase
-        .from('menu_items')
+      const { error } = await menuItemsTable()
         .update({
           display_time: updatedImage.displayTime,
           transition_type: updatedImage.transitionType,
           video_autoplay: updatedImage.videoAutoplay,
           video_muted: updatedImage.videoMuted,
           video_loop: updatedImage.videoLoop
-        })
+        } as any)
         .eq('id', updatedImage.id);
 
       if (error) {
@@ -257,6 +256,141 @@ const Dashboard = () => {
       saveToLocalStorage(updatedImages);
     } catch (error) {
       console.error('Error updating image:', error);
+    }
+  };
+
+  const loadAudiosFromSupabase = async () => {
+    try {
+      const { data, error } = await audioTracksTable()
+        .select('*')
+        .order('order_index', { ascending: true });
+
+      if (error) {
+        console.error('Error loading audios from Supabase:', error);
+        return;
+      }
+
+      if (data) {
+        const formattedAudios: AudioTrack[] = data.map((audio: any) => ({
+          id: audio.id,
+          url: `https://hqetuukelgurerlfnmqd.supabase.co/storage/v1/object/public/audio-tracks/${audio.file_path}`,
+          name: audio.name,
+          order: audio.order_index,
+          uploadedAt: new Date(audio.created_at),
+        }));
+        setAudios(formattedAudios);
+      }
+    } catch (error) {
+      console.error('Error loading audios:', error);
+    }
+  };
+
+  const handleAudiosUploaded = async (newAudios: AudioTrack[]) => {
+    try {
+      const audiosToInsert = newAudios.map((audio, index) => ({
+        id: audio.id,
+        name: audio.name,
+        file_path: audio.url.split('/').pop(),
+        order_index: audios.length + index,
+      }));
+
+      const { error } = await audioTracksTable()
+        .insert(audiosToInsert);
+
+      if (error) {
+        console.error('Error inserting audios to Supabase:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível salvar os áudios no banco de dados.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      await loadAudiosFromSupabase();
+      
+      toast({
+        title: "Áudios carregados!",
+        description: `${newAudios.length} áudio(s) adicionado(s) com sucesso.`,
+      });
+    } catch (error) {
+      console.error('Error handling uploaded audios:', error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro ao processar os áudios.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleAudioDeleted = async (audioId: string) => {
+    try {
+      const audioToDelete = audios.find(audio => audio.id === audioId);
+      
+      const { error } = await audioTracksTable()
+        .delete()
+        .eq('id', audioId);
+
+      if (error) {
+        console.error('Error deleting audio from Supabase:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível remover o áudio do banco de dados.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (audioToDelete) {
+        const fileName = audioToDelete.url.split('/').pop();
+        if (fileName) {
+          const { error: storageError } = await supabase.storage
+            .from('audio-tracks')
+            .remove([fileName]);
+          
+          if (storageError) {
+            console.error('Error deleting audio from storage:', storageError);
+          }
+        }
+      }
+
+      const updatedAudios = audios.filter(audio => audio.id !== audioId);
+      setAudios(updatedAudios);
+      
+      toast({
+        title: "Áudio removido",
+        description: "O áudio foi removido com sucesso.",
+      });
+    } catch (error) {
+      console.error('Error deleting audio:', error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro ao remover o áudio.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleAudioReorder = async (reorderedAudios: AudioTrack[]) => {
+    try {
+      const updates = reorderedAudios.map((audio, index) => ({
+        id: audio.id,
+        order_index: index
+      }));
+
+      for (const update of updates) {
+        const { error } = await audioTracksTable()
+          .update({ order_index: update.order_index })
+          .eq('id', update.id);
+
+        if (error) {
+          console.error('Error updating audio order:', error);
+        }
+      }
+
+      setAudios(reorderedAudios);
+    } catch (error) {
+      console.error('Error reordering audios:', error);
     }
   };
 
@@ -318,6 +452,25 @@ const Dashboard = () => {
                 onImageDelete={handleImageDeleted}
                 onImageReorder={handleImageReorder}
                 onImageUpdate={handleImageUpdate}
+              />
+            </Card>
+
+            {/* Audio Section */}
+            <Card className="p-6 shadow-medium">
+              <div className="flex items-center space-x-3 mb-6">
+                <Music className="h-5 w-5 text-primary" />
+                <h2 className="text-xl font-semibold">Sistema de Rádio Contínuo</h2>
+              </div>
+              <AudioUpload onAudiosUploaded={handleAudiosUploaded} />
+            </Card>
+
+            {/* Audio Grid */}
+            <Card className="p-6 shadow-medium">
+              <h2 className="text-xl font-semibold mb-6">Músicas/Vinhetas ({audios.length})</h2>
+              <AudioGrid
+                audios={audios}
+                onAudioDelete={handleAudioDeleted}
+                onAudioReorder={handleAudioReorder}
               />
             </Card>
           </div>

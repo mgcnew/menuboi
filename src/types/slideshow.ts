@@ -25,3 +25,11 @@ export const TRANSITION_OPTIONS: { value: TransitionType; label: string }[] = [
 
 export const DEFAULT_DISPLAY_TIME = 10;
 export const DEFAULT_TRANSITION_TYPE: TransitionType = 'fade';
+
+export interface AudioTrack {
+  id: string;
+  name: string;
+  url: string;
+  order: number;
+  uploadedAt: Date;
+}

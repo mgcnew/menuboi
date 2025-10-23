@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { MenuItem } from "./Dashboard";
 import { supabase } from "@/integrations/supabase/client";
+import { menuItemsTable } from "@/lib/supabase-helpers";
 
 const TVPreparation = () => {
   const [images, setImages] = useState<MenuItem[]>([]);
@@ -44,8 +45,7 @@ const TVPreparation = () => {
 
     // Fallback to Supabase if localStorage is empty
     try {
-      const { data, error } = await supabase
-        .from('menu_items')
+      const { data, error } = await menuItemsTable()
         .select('*')
         .order('order_index', { ascending: true });
 

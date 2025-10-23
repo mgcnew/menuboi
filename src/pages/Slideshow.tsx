@@ -1,10 +1,14 @@
 import { useState, useEffect, useCallback } from "react";
 import { MenuItem } from "./Dashboard";
+import { AudioTrack } from "@/types/slideshow";
 import { supabase } from "@/integrations/supabase/client";
+import { menuItemsTable, audioTracksTable } from "@/lib/supabase-helpers";
+import { AudioPlayer } from "@/components/AudioPlayer";
 import { ChevronLeft, ChevronRight, Pause, Play, RefreshCw, Loader2 } from "lucide-react";
 
 const Slideshow = () => {
   const [images, setImages] = useState<MenuItem[]>([]);
+  const [audios, setAudios] = useState<AudioTrack[]>([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
   const [showControls, setShowControls] = useState(false);
@@ -53,13 +57,13 @@ const Slideshow = () => {
 
   useEffect(() => {
     loadImagesAndSettings();
+    loadAudiosFromSupabase();
   }, []);
 
   const loadImagesAndSettings = async () => {
     try {
       // Load directly from Supabase for real-time data
-      const { data, error } = await supabase
-        .from('menu_items')
+      const { data, error } = await menuItemsTable()
         .select('*')
         .order('order_index', { ascending: true });
 
@@ -95,8 +99,35 @@ const Slideshow = () => {
     }
   };
 
+  const loadAudiosFromSupabase = async () => {
+    try {
+      const { data, error } = await audioTracksTable()
+        .select('*')
+        .order('order_index', { ascending: true });
+
+      if (error) {
+        console.error('Error loading audios from Supabase:', error);
+        return;
+      }
+
+      if (data) {
+        const formattedAudios: AudioTrack[] = data.map((audio: any) => ({
+          id: audio.id,
+          url: `https://hqetuukelgurerlfnmqd.supabase.co/storage/v1/object/public/audio-tracks/${audio.file_path}`,
+          name: audio.name,
+          order: audio.order_index,
+          uploadedAt: new Date(audio.created_at),
+        }));
+        setAudios(formattedAudios);
+      }
+    } catch (error) {
+      console.error('Error loading audios:', error);
+    }
+  };
+
   const handleReloadImages = () => {
     loadImagesAndSettings();
+    loadAudiosFromSupabase();
   };
 
   // Auto-advance slideshow with individual timing
@@ -280,6 +311,9 @@ const Slideshow = () => {
 
   return (
     <div className="slideshow-container">
+      {/* Audio Player - Continuous playback */}
+      <AudioPlayer tracks={audios} />
+      
       {/* Optimized Items - Only render current and next */}
       {images.map(renderItem)}
 
