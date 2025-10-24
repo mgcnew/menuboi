@@ -8,11 +8,13 @@ import { ImageGrid } from "@/components/ImageGrid";
 import { SlideshowPreview } from "@/components/SlideshowPreview";
 import { AudioUpload } from "@/components/AudioUpload";
 import { AudioGrid } from "@/components/AudioGrid";
-import { Monitor, Settings, Upload, Play, Music } from "lucide-react";
+import { AnnouncementUpload } from "@/components/AnnouncementUpload";
+import { AnnouncementGrid } from "@/components/AnnouncementGrid";
+import { Monitor, Settings, Upload, Play, Music, Radio } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { TransitionType, DEFAULT_DISPLAY_TIME, DEFAULT_TRANSITION_TYPE, AudioTrack } from "@/types/slideshow";
+import { TransitionType, DEFAULT_DISPLAY_TIME, DEFAULT_TRANSITION_TYPE, AudioTrack, Announcement } from "@/types/slideshow";
 import { supabase } from "@/integrations/supabase/client";
-import { menuItemsTable, audioTracksTable } from "@/lib/supabase-helpers";
+import { menuItemsTable, audioTracksTable, announcementsTable } from "@/lib/supabase-helpers";
 
 export interface MenuItem {
   id: string;
@@ -34,12 +36,14 @@ export type MenuImage = MenuItem;
 const Dashboard = () => {
   const [images, setImages] = useState<MenuItem[]>([]);
   const [audios, setAudios] = useState<AudioTrack[]>([]);
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [transitionTime, setTransitionTime] = useState(10);
   const { toast } = useToast();
 
   useEffect(() => {
     loadImagesFromSupabase();
     loadAudiosFromSupabase();
+    loadAnnouncementsFromSupabase();
     loadTransitionTimeFromLocalStorage();
   }, []);
 
@@ -406,6 +410,147 @@ const Dashboard = () => {
     }
   };
 
+  const loadAnnouncementsFromSupabase = async () => {
+    try {
+      const { data, error } = await announcementsTable()
+        .select('*')
+        .order('order_index', { ascending: true });
+
+      if (error) {
+        console.error('Error loading announcements from Supabase:', error);
+        return;
+      }
+
+      if (data) {
+        const formattedAnnouncements: Announcement[] = data.map((announcement: any) => {
+          const { data: { publicUrl } } = supabase.storage
+            .from('announcements')
+            .getPublicUrl(announcement.file_path);
+
+          return {
+            id: announcement.id,
+            url: publicUrl,
+            name: announcement.name,
+            order: announcement.order_index,
+            uploadedAt: new Date(announcement.created_at),
+          };
+        });
+        setAnnouncements(formattedAnnouncements);
+      }
+    } catch (error) {
+      console.error('Error loading announcements:', error);
+    }
+  };
+
+  const handleAnnouncementsUploaded = async (newAnnouncements: Announcement[]) => {
+    try {
+      const announcementsToInsert = newAnnouncements.map((announcement, index) => ({
+        id: announcement.id,
+        name: announcement.name,
+        file_path: announcement.url.split('/').pop(),
+        order_index: announcements.length + index,
+      }));
+
+      const { error } = await announcementsTable()
+        .insert(announcementsToInsert);
+
+      if (error) {
+        console.error('Error inserting announcements to Supabase:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível salvar as locuções no banco de dados.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      await loadAnnouncementsFromSupabase();
+      
+      toast({
+        title: "Locuções carregadas!",
+        description: `${newAnnouncements.length} locuçã(ões) adicionada(s) com sucesso.`,
+      });
+    } catch (error) {
+      console.error('Error handling uploaded announcements:', error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro ao processar as locuções.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleAnnouncementDeleted = async (announcementId: string) => {
+    try {
+      const announcementToDelete = announcements.find(announcement => announcement.id === announcementId);
+      
+      const { error } = await announcementsTable()
+        .delete()
+        .eq('id', announcementId);
+
+      if (error) {
+        console.error('Error deleting announcement from Supabase:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível remover a locução do banco de dados.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (announcementToDelete) {
+        const fileName = announcementToDelete.url.split('/').pop();
+        if (fileName) {
+          const { error: storageError } = await supabase.storage
+            .from('announcements')
+            .remove([fileName]);
+          
+          if (storageError) {
+            console.error('Error deleting announcement from storage:', storageError);
+          }
+        }
+      }
+
+      const updatedAnnouncements = announcements.filter(announcement => announcement.id !== announcementId);
+      setAnnouncements(updatedAnnouncements);
+      
+      toast({
+        title: "Locução removida",
+        description: "A locução foi removida com sucesso.",
+      });
+    } catch (error) {
+      console.error('Error deleting announcement:', error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro ao remover a locução.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleAnnouncementReorder = async (reorderedAnnouncements: Announcement[]) => {
+    try {
+      const updates = reorderedAnnouncements.map((announcement, index) => ({
+        id: announcement.id,
+        order_index: index
+      }));
+
+      for (const update of updates) {
+        const { error } = await announcementsTable()
+          .update({ order_index: update.order_index })
+          .eq('id', update.id);
+
+        if (error) {
+          console.error('Error updating announcement order:', error);
+        }
+      }
+
+      setAnnouncements(reorderedAnnouncements);
+    } catch (error) {
+      console.error('Error reordering announcements:', error);
+    }
+  };
+
   const handleTransitionTimeChange = (time: number) => {
     setTransitionTime(time);
     saveToLocalStorage(images, time);
@@ -483,6 +628,28 @@ const Dashboard = () => {
                 audios={audios}
                 onAudioDelete={handleAudioDeleted}
                 onAudioReorder={handleAudioReorder}
+              />
+            </Card>
+
+            {/* Announcement Section */}
+            <Card className="p-6 shadow-medium">
+              <div className="flex items-center space-x-3 mb-6">
+                <Radio className="h-5 w-5 text-primary" />
+                <h2 className="text-xl font-semibold">Locuções e Vinhetas</h2>
+              </div>
+              <p className="text-sm text-muted-foreground mb-4">
+                As locuções serão alternadas aleatoriamente com as músicas durante a reprodução.
+              </p>
+              <AnnouncementUpload onAnnouncementsUploaded={handleAnnouncementsUploaded} />
+            </Card>
+
+            {/* Announcement Grid */}
+            <Card className="p-6 shadow-medium">
+              <h2 className="text-xl font-semibold mb-6">Locuções ({announcements.length})</h2>
+              <AnnouncementGrid
+                announcements={announcements}
+                onAnnouncementDelete={handleAnnouncementDeleted}
+                onAnnouncementReorder={handleAnnouncementReorder}
               />
             </Card>
           </div>

@@ -33,3 +33,11 @@ export interface AudioTrack {
   order: number;
   uploadedAt: Date;
 }
+
+export interface Announcement {
+  id: string;
+  name: string;
+  url: string;
+  order: number;
+  uploadedAt: Date;
+}

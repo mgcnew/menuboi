@@ -1,14 +1,15 @@
 import { useState, useEffect, useCallback } from "react";
 import { MenuItem } from "./Dashboard";
-import { AudioTrack } from "@/types/slideshow";
+import { AudioTrack, Announcement } from "@/types/slideshow";
 import { supabase } from "@/integrations/supabase/client";
-import { menuItemsTable, audioTracksTable } from "@/lib/supabase-helpers";
+import { menuItemsTable, audioTracksTable, announcementsTable } from "@/lib/supabase-helpers";
 import { AudioPlayer } from "@/components/AudioPlayer";
 import { ChevronLeft, ChevronRight, Pause, Play, RefreshCw, Loader2 } from "lucide-react";
 
 const Slideshow = () => {
   const [images, setImages] = useState<MenuItem[]>([]);
   const [audios, setAudios] = useState<AudioTrack[]>([]);
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
   const [showControls, setShowControls] = useState(false);
@@ -58,6 +59,7 @@ const Slideshow = () => {
   useEffect(() => {
     loadImagesAndSettings();
     loadAudiosFromSupabase();
+    loadAnnouncementsFromSupabase();
   }, []);
 
   const loadImagesAndSettings = async () => {
@@ -137,9 +139,42 @@ const Slideshow = () => {
     }
   };
 
+  const loadAnnouncementsFromSupabase = async () => {
+    try {
+      const { data, error } = await announcementsTable()
+        .select('*')
+        .order('order_index', { ascending: true });
+
+      if (error) {
+        console.error('Error loading announcements from Supabase:', error);
+        return;
+      }
+
+      if (data) {
+        const formattedAnnouncements: Announcement[] = data.map((announcement: any) => {
+          const { data: { publicUrl } } = supabase.storage
+            .from('announcements')
+            .getPublicUrl(announcement.file_path);
+
+          return {
+            id: announcement.id,
+            url: publicUrl,
+            name: announcement.name,
+            order: announcement.order_index,
+            uploadedAt: new Date(announcement.created_at),
+          };
+        });
+        setAnnouncements(formattedAnnouncements);
+      }
+    } catch (error) {
+      console.error('Error loading announcements:', error);
+    }
+  };
+
   const handleReloadImages = () => {
     loadImagesAndSettings();
     loadAudiosFromSupabase();
+    loadAnnouncementsFromSupabase();
   };
 
   // Auto-advance slideshow with individual timing
@@ -323,8 +358,8 @@ const Slideshow = () => {
 
   return (
     <div className="slideshow-container">
-      {/* Audio Player - Continuous playback */}
-      <AudioPlayer tracks={audios} />
+      {/* Audio Player - Continuous playback with shuffled playlist */}
+      <AudioPlayer tracks={audios} announcements={announcements} />
       
       {/* Optimized Items - Only render current and next */}
       {images.map(renderItem)}

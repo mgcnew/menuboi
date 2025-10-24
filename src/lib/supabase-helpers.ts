@@ -10,3 +10,7 @@ export const menuItemsTable = () => {
 export const audioTracksTable = () => {
   return supabase.from('audio_tracks');
 };
+
+export const announcementsTable = () => {
+  return supabase.from('announcements');
+};
