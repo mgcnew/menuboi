@@ -73,19 +73,25 @@ const Slideshow = () => {
       }
 
       if (data && data.length > 0) {
-        const formattedImages = data.map((img: any) => ({
-          id: img.id,
-          url: `https://rsyqznvjpmwoibgohptz.supabase.co/storage/v1/object/public/menu-images/${img.file_path}`,
-          name: img.name,
-          order: img.order_index,
-          uploadedAt: new Date(img.created_at),
-          displayTime: img.display_time,
-          transitionType: img.transition_type,
-          itemType: img.item_type || 'image',
-          videoAutoplay: img.video_autoplay !== false,
-          videoMuted: img.video_muted !== false,
-          videoLoop: img.video_loop || false
-        }));
+        const formattedImages = data.map((img: any) => {
+          const { data: { publicUrl } } = supabase.storage
+            .from('menu-images')
+            .getPublicUrl(img.file_path);
+
+          return {
+            id: img.id,
+            url: publicUrl,
+            name: img.name,
+            order: img.order_index,
+            uploadedAt: new Date(img.created_at),
+            displayTime: img.display_time,
+            transitionType: img.transition_type,
+            itemType: img.item_type || 'image',
+            videoAutoplay: img.video_autoplay !== false,
+            videoMuted: img.video_muted !== false,
+            videoLoop: img.video_loop || false
+          };
+        });
         setImages(formattedImages);
         // Reset loading states when images change
         setLoadedImages(new Set());
@@ -111,13 +117,19 @@ const Slideshow = () => {
       }
 
       if (data) {
-        const formattedAudios: AudioTrack[] = data.map((audio: any) => ({
-          id: audio.id,
-          url: `https://hqetuukelgurerlfnmqd.supabase.co/storage/v1/object/public/audio-tracks/${audio.file_path}`,
-          name: audio.name,
-          order: audio.order_index,
-          uploadedAt: new Date(audio.created_at),
-        }));
+        const formattedAudios: AudioTrack[] = data.map((audio: any) => {
+          const { data: { publicUrl } } = supabase.storage
+            .from('audio-tracks')
+            .getPublicUrl(audio.file_path);
+
+          return {
+            id: audio.id,
+            url: publicUrl,
+            name: audio.name,
+            order: audio.order_index,
+            uploadedAt: new Date(audio.created_at),
+          };
+        });
         setAudios(formattedAudios);
       }
     } catch (error) {

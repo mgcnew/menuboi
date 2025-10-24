@@ -55,19 +55,25 @@ const TVPreparation = () => {
       }
 
       if (data && data.length > 0) {
-        const formattedImages: MenuItem[] = data.map((img: any) => ({
-          id: img.id,
-          url: `https://rsyqznvjpmwoibgohptz.supabase.co/storage/v1/object/public/menu-images/${img.file_path}`,
-          name: img.name,
-          order: img.order_index,
-          uploadedAt: new Date(img.created_at),
-          displayTime: img.display_time,
-          transitionType: img.transition_type,
-          itemType: img.item_type || 'image',
-          videoAutoplay: img.video_autoplay,
-          videoMuted: img.video_muted,
-          videoLoop: img.video_loop
-        }));
+        const formattedImages: MenuItem[] = data.map((img: any) => {
+          const { data: { publicUrl } } = supabase.storage
+            .from('menu-images')
+            .getPublicUrl(img.file_path);
+
+          return {
+            id: img.id,
+            url: publicUrl,
+            name: img.name,
+            order: img.order_index,
+            uploadedAt: new Date(img.created_at),
+            displayTime: img.display_time,
+            transitionType: img.transition_type,
+            itemType: img.item_type || 'image',
+            videoAutoplay: img.video_autoplay,
+            videoMuted: img.video_muted,
+            videoLoop: img.video_loop
+          };
+        });
         setImages(formattedImages);
         setIsReady(true);
         // Save to localStorage for future use

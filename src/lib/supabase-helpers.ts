@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 // These use type assertions to work around type generation delays
 
 export const menuItemsTable = () => {
-  return supabase.from('menu_items' as any);
+  return supabase.from('menu_items');
 };
 
 export const audioTracksTable = () => {
