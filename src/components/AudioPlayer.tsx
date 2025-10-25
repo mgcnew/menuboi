@@ -14,6 +14,15 @@ export const AudioPlayer = ({ tracks, announcements }: AudioPlayerProps) => {
   const [showControls, setShowControls] = useState(false);
   const [playlist, setPlaylist] = useState<(AudioTrack | Announcement)[]>([]);
 
+  const shufflePlaylist = (items: (AudioTrack | Announcement)[]) => {
+    const shuffled = [...items];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+  };
+
   // Create a shuffled playlist mixing tracks and announcements
   useEffect(() => {
     if (tracks.length === 0 && announcements.length === 0) {
@@ -21,15 +30,8 @@ export const AudioPlayer = ({ tracks, announcements }: AudioPlayerProps) => {
       return;
     }
 
-    // Create a mixed array with all items
     const allItems = [...tracks, ...announcements];
-    
-    // Shuffle the array using Fisher-Yates algorithm
-    const shuffled = [...allItems];
-    for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-    }
+    const shuffled = shufflePlaylist(allItems);
 
     setPlaylist(shuffled);
     setCurrentIndex(0);
@@ -45,8 +47,18 @@ export const AudioPlayer = ({ tracks, announcements }: AudioPlayerProps) => {
   }, [currentIndex, playlist]);
 
   const handleEnded = () => {
-    // Move to next track, loop back to start if at end
-    setCurrentIndex((prev) => (prev + 1) % playlist.length);
+    const nextIndex = currentIndex + 1;
+    
+    // If we reached the end, reshuffle and start from beginning
+    if (nextIndex >= playlist.length) {
+      const allItems = [...tracks, ...announcements];
+      const reshuffled = shufflePlaylist(allItems);
+      setPlaylist(reshuffled);
+      setCurrentIndex(0);
+    } else {
+      // Move to next track
+      setCurrentIndex(nextIndex);
+    }
   };
 
   const toggleMute = () => {
