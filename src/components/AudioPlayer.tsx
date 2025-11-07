@@ -14,8 +14,8 @@ export const AudioPlayer = ({ tracks, announcements }: AudioPlayerProps) => {
   const [showControls, setShowControls] = useState(false);
   const [playlist, setPlaylist] = useState<(AudioTrack | Announcement)[]>([]);
 
-  const shufflePlaylist = (items: (AudioTrack | Announcement)[]) => {
-    const shuffled = [...items];
+  const shuffleArray = <T,>(array: T[]): T[] => {
+    const shuffled = [...array];
     for (let i = shuffled.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
@@ -23,17 +23,38 @@ export const AudioPlayer = ({ tracks, announcements }: AudioPlayerProps) => {
     return shuffled;
   };
 
-  // Create a shuffled playlist mixing tracks and announcements
-  useEffect(() => {
-    if (tracks.length === 0 && announcements.length === 0) {
-      setPlaylist([]);
-      return;
+  const createInterleavedPlaylist = (
+    tracks: AudioTrack[],
+    announcements: Announcement[]
+  ): (AudioTrack | Announcement)[] => {
+    if (tracks.length === 0 && announcements.length === 0) return [];
+    if (tracks.length === 0) return shuffleArray(announcements);
+    if (announcements.length === 0) return shuffleArray(tracks);
+
+    const shuffledTracks = shuffleArray(tracks);
+    const shuffledAnnouncements = shuffleArray(announcements);
+    const interleaved: (AudioTrack | Announcement)[] = [];
+
+    const maxLength = Math.max(shuffledTracks.length, shuffledAnnouncements.length);
+
+    for (let i = 0; i < maxLength; i++) {
+      // Add track first (if available)
+      if (i < shuffledTracks.length) {
+        interleaved.push(shuffledTracks[i]);
+      }
+      // Then add announcement (if available)
+      if (i < shuffledAnnouncements.length) {
+        interleaved.push(shuffledAnnouncements[i]);
+      }
     }
 
-    const allItems = [...tracks, ...announcements];
-    const shuffled = shufflePlaylist(allItems);
+    return interleaved;
+  };
 
-    setPlaylist(shuffled);
+  // Create an interleaved playlist: music -> announcement -> music -> announcement
+  useEffect(() => {
+    const interleaved = createInterleavedPlaylist(tracks, announcements);
+    setPlaylist(interleaved);
     setCurrentIndex(0);
   }, [tracks, announcements]);
 
@@ -49,11 +70,10 @@ export const AudioPlayer = ({ tracks, announcements }: AudioPlayerProps) => {
   const handleEnded = () => {
     const nextIndex = currentIndex + 1;
     
-    // If we reached the end, reshuffle and start from beginning
+    // If we reached the end, create a new interleaved playlist with new random order
     if (nextIndex >= playlist.length) {
-      const allItems = [...tracks, ...announcements];
-      const reshuffled = shufflePlaylist(allItems);
-      setPlaylist(reshuffled);
+      const newInterleaved = createInterleavedPlaylist(tracks, announcements);
+      setPlaylist(newInterleaved);
       setCurrentIndex(0);
     } else {
       // Move to next track
