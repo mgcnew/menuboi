@@ -45,16 +45,36 @@ const Slideshow = () => {
     img.src = url;
   }, [loadedImages, loadingImages, failedImages]);
 
-  // Preload current and next images
+  // Preload only current and next image for lighter performance
   useEffect(() => {
     if (images.length === 0) return;
     
-    // Preload current image and next 2 images
-    for (let i = 0; i < Math.min(3, images.length); i++) {
+    // Preload only current and next image (more efficient)
+    for (let i = 0; i < Math.min(2, images.length); i++) {
       const imageIndex = (currentImageIndex + i) % images.length;
-      preloadImage(images[imageIndex].url);
+      const image = images[imageIndex];
+      // Only preload images, not videos
+      if (image.itemType !== 'video') {
+        preloadImage(image.url);
+      }
     }
   }, [images, currentImageIndex, preloadImage]);
+
+  // Auto-skip failed images
+  useEffect(() => {
+    if (images.length === 0) return;
+    
+    const currentImage = images[currentImageIndex];
+    if (failedImages.has(currentImage?.url)) {
+      console.log('Image failed to load, skipping to next:', currentImage.name);
+      // Skip to next image after a short delay
+      const timeout = setTimeout(() => {
+        setCurrentImageIndex((prev) => (prev + 1) % images.length);
+      }, 1000);
+      
+      return () => clearTimeout(timeout);
+    }
+  }, [currentImageIndex, images, failedImages]);
 
   useEffect(() => {
     loadImagesAndSettings();
@@ -336,6 +356,13 @@ const Slideshow = () => {
             muted={item.videoMuted}
             loop={item.videoLoop}
             playsInline
+            onError={() => {
+              console.error('Error loading video:', item.name);
+              setFailedImages(prev => new Set(prev).add(item.url));
+            }}
+            onLoadedData={() => {
+              setLoadedImages(prev => new Set(prev).add(item.url));
+            }}
             style={{ 
               opacity: isLoaded ? 1 : 0,
               transition: 'opacity 0.3s ease-in-out'
@@ -346,6 +373,13 @@ const Slideshow = () => {
             src={item.url}
             alt={item.name}
             className="w-full h-full object-cover"
+            onError={() => {
+              console.error('Error loading image:', item.name);
+              setFailedImages(prev => new Set(prev).add(item.url));
+            }}
+            onLoad={() => {
+              setLoadedImages(prev => new Set(prev).add(item.url));
+            }}
             style={{ 
               opacity: isLoaded ? 1 : 0,
               transition: 'opacity 0.3s ease-in-out'
