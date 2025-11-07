@@ -139,19 +139,14 @@ const Slideshow = () => {
       }
 
       if (data) {
-        const formattedAudios: AudioTrack[] = data.map((audio: any) => {
-          const { data: { publicUrl } } = supabase.storage
-            .from('audio-tracks')
-            .getPublicUrl(audio.file_path);
-
-          return {
-            id: audio.id,
-            url: publicUrl,
-            name: audio.name,
-            order: audio.order_index,
-            uploadedAt: new Date(audio.created_at),
-          };
-        });
+        // Don't generate URLs here - let AudioPlayer handle it for better performance
+        const formattedAudios: AudioTrack[] = data.map((audio: any) => ({
+          id: audio.id,
+          url: audio.file_path, // Store file_path instead of public URL
+          name: audio.name,
+          order: audio.order_index,
+          uploadedAt: new Date(audio.created_at),
+        }));
         setAudios(formattedAudios);
       }
     } catch (error) {
@@ -171,19 +166,14 @@ const Slideshow = () => {
       }
 
       if (data) {
-        const formattedAnnouncements: Announcement[] = data.map((announcement: any) => {
-          const { data: { publicUrl } } = supabase.storage
-            .from('announcements')
-            .getPublicUrl(announcement.file_path);
-
-          return {
-            id: announcement.id,
-            url: publicUrl,
-            name: announcement.name,
-            order: announcement.order_index,
-            uploadedAt: new Date(announcement.created_at),
-          };
-        });
+        // Don't generate URLs here - let AudioPlayer handle it for better performance
+        const formattedAnnouncements: Announcement[] = data.map((announcement: any) => ({
+          id: announcement.id,
+          url: announcement.file_path, // Store file_path instead of public URL
+          name: announcement.name,
+          order: announcement.order_index,
+          uploadedAt: new Date(announcement.created_at),
+        }));
         setAnnouncements(formattedAnnouncements);
       }
     } catch (error) {

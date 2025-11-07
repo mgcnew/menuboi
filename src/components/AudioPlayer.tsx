@@ -1,10 +1,18 @@
 import { useEffect, useRef, useState } from "react";
 import { Volume2, VolumeX, Music, SkipForward, SkipBack } from "lucide-react";
 import { AudioTrack, Announcement } from "@/types/slideshow";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AudioPlayerProps {
   tracks: AudioTrack[];
   announcements: Announcement[];
+}
+
+interface PlaylistItem {
+  id: string;
+  name: string;
+  filePath: string;
+  type: 'track' | 'announcement';
 }
 
 export const AudioPlayer = ({ tracks, announcements }: AudioPlayerProps) => {
@@ -12,7 +20,9 @@ export const AudioPlayer = ({ tracks, announcements }: AudioPlayerProps) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
   const [showControls, setShowControls] = useState(false);
-  const [playlist, setPlaylist] = useState<(AudioTrack | Announcement)[]>([]);
+  const [playlist, setPlaylist] = useState<PlaylistItem[]>([]);
+  const [currentUrl, setCurrentUrl] = useState<string>("");
+  const [nextUrl, setNextUrl] = useState<string>("");
 
   const shuffleArray = <T,>(array: T[]): T[] => {
     const shuffled = [...array];
@@ -26,29 +36,51 @@ export const AudioPlayer = ({ tracks, announcements }: AudioPlayerProps) => {
   const createInterleavedPlaylist = (
     tracks: AudioTrack[],
     announcements: Announcement[]
-  ): (AudioTrack | Announcement)[] => {
+  ): PlaylistItem[] => {
     if (tracks.length === 0 && announcements.length === 0) return [];
-    if (tracks.length === 0) return shuffleArray(announcements);
-    if (announcements.length === 0) return shuffleArray(tracks);
+    
+    const trackItems: PlaylistItem[] = tracks.map(t => ({
+      id: t.id,
+      name: t.name,
+      filePath: t.url, // This is actually the file_path from DB
+      type: 'track' as const
+    }));
+    
+    const announcementItems: PlaylistItem[] = announcements.map(a => ({
+      id: a.id,
+      name: a.name,
+      filePath: a.url, // This is actually the file_path from DB
+      type: 'announcement' as const
+    }));
+    
+    if (trackItems.length === 0) return shuffleArray(announcementItems);
+    if (announcementItems.length === 0) return shuffleArray(trackItems);
 
-    const shuffledTracks = shuffleArray(tracks);
-    const shuffledAnnouncements = shuffleArray(announcements);
-    const interleaved: (AudioTrack | Announcement)[] = [];
+    const shuffledTracks = shuffleArray(trackItems);
+    const shuffledAnnouncements = shuffleArray(announcementItems);
+    const interleaved: PlaylistItem[] = [];
 
     const maxLength = Math.max(shuffledTracks.length, shuffledAnnouncements.length);
 
     for (let i = 0; i < maxLength; i++) {
-      // Add track first (if available)
       if (i < shuffledTracks.length) {
         interleaved.push(shuffledTracks[i]);
       }
-      // Then add announcement (if available)
       if (i < shuffledAnnouncements.length) {
         interleaved.push(shuffledAnnouncements[i]);
       }
     }
 
     return interleaved;
+  };
+
+  // Get public URL for an audio file
+  const getAudioUrl = (item: PlaylistItem): string => {
+    const bucket = item.type === 'track' ? 'audio-tracks' : 'announcements';
+    const { data: { publicUrl } } = supabase.storage
+      .from(bucket)
+      .getPublicUrl(item.filePath);
+    return publicUrl;
   };
 
   // Create an interleaved playlist: music -> announcement -> music -> announcement
@@ -58,14 +90,31 @@ export const AudioPlayer = ({ tracks, announcements }: AudioPlayerProps) => {
     setCurrentIndex(0);
   }, [tracks, announcements]);
 
+  // Load only current and next audio URLs for performance
+  useEffect(() => {
+    if (playlist.length === 0) return;
+
+    const current = playlist[currentIndex];
+    const nextIndex = (currentIndex + 1) % playlist.length;
+    const next = playlist[nextIndex];
+
+    // Generate URLs only for current and next audio
+    const currentAudioUrl = getAudioUrl(current);
+    const nextAudioUrl = getAudioUrl(next);
+
+    setCurrentUrl(currentAudioUrl);
+    setNextUrl(nextAudioUrl);
+  }, [currentIndex, playlist]);
+
+  // Play current audio
   useEffect(() => {
     const audio = audioRef.current;
-    if (!audio || playlist.length === 0) return;
+    if (!audio || !currentUrl) return;
 
-    audio.src = playlist[currentIndex].url;
+    audio.src = currentUrl;
     audio.load();
     audio.play().catch(err => console.log('Auto-play prevented:', err));
-  }, [currentIndex, playlist]);
+  }, [currentUrl]);
 
   const handleEnded = () => {
     const nextIndex = currentIndex + 1;
@@ -124,9 +173,16 @@ export const AudioPlayer = ({ tracks, announcements }: AudioPlayerProps) => {
     };
   }, []);
 
-  if (playlist.length === 0) return null;
+  if (playlist.length === 0 || !currentUrl) return null;
 
   const currentItem = playlist[currentIndex];
+  
+  // Preload next audio in background
+  if (nextUrl) {
+    const preloadAudio = new Audio();
+    preloadAudio.src = nextUrl;
+    preloadAudio.load();
+  }
 
   return (
     <>
