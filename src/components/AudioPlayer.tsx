@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Volume2, VolumeX, Music } from "lucide-react";
+import { Volume2, VolumeX, Music, SkipForward, SkipBack } from "lucide-react";
 import { AudioTrack, Announcement } from "@/types/slideshow";
 
 interface AudioPlayerProps {
@@ -88,6 +88,25 @@ export const AudioPlayer = ({ tracks, announcements }: AudioPlayerProps) => {
     }
   };
 
+  const nextTrack = () => {
+    const nextIndex = currentIndex + 1;
+    if (nextIndex >= playlist.length) {
+      const newInterleaved = createInterleavedPlaylist(tracks, announcements);
+      setPlaylist(newInterleaved);
+      setCurrentIndex(0);
+    } else {
+      setCurrentIndex(nextIndex);
+    }
+  };
+
+  const previousTrack = () => {
+    if (currentIndex > 0) {
+      setCurrentIndex(currentIndex - 1);
+    } else {
+      setCurrentIndex(playlist.length - 1);
+    }
+  };
+
   // Show/hide controls on mouse movement
   useEffect(() => {
     let timeout: NodeJS.Timeout;
@@ -134,17 +153,33 @@ export const AudioPlayer = ({ tracks, announcements }: AudioPlayerProps) => {
                 {currentIndex + 1} de {playlist.length}
               </p>
             </div>
-            <button
-              onClick={toggleMute}
-              className="p-2 hover:bg-white/10 rounded-full transition-colors"
-              aria-label={isMuted ? "Ativar som" : "Silenciar"}
-            >
-              {isMuted ? (
-                <VolumeX className="h-5 w-5" />
-              ) : (
-                <Volume2 className="h-5 w-5" />
-              )}
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={previousTrack}
+                className="p-2 hover:bg-white/10 rounded-full transition-colors"
+                aria-label="Música anterior"
+              >
+                <SkipBack className="h-4 w-4" />
+              </button>
+              <button
+                onClick={nextTrack}
+                className="p-2 hover:bg-white/10 rounded-full transition-colors"
+                aria-label="Próxima música"
+              >
+                <SkipForward className="h-4 w-4" />
+              </button>
+              <button
+                onClick={toggleMute}
+                className="p-2 hover:bg-white/10 rounded-full transition-colors"
+                aria-label={isMuted ? "Ativar som" : "Silenciar"}
+              >
+                {isMuted ? (
+                  <VolumeX className="h-5 w-5" />
+                ) : (
+                  <Volume2 className="h-5 w-5" />
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </div>
