@@ -326,6 +326,16 @@ const Slideshow = () => {
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, [showControls]);
 
+  // Lazy rendering - only process current and next image (80% less processing)
+  // MUST be before early return to avoid hook order violations
+  const itemsToRender = useMemo(() => {
+    if (images.length === 0) return [];
+    const indices = [currentImageIndex, (currentImageIndex + 1) % images.length];
+    return images.filter((_, idx) => indices.includes(idx));
+  }, [images, currentImageIndex]);
+
+  const currentImage = images[currentImageIndex];
+
   if (images.length === 0) {
     return (
       <div className="slideshow-container">
@@ -344,15 +354,6 @@ const Slideshow = () => {
       </div>
     );
   }
-
-  const currentImage = images[currentImageIndex];
-
-  // Lazy rendering - only process current and next image (80% less processing)
-  const itemsToRender = useMemo(() => {
-    if (images.length === 0) return [];
-    const indices = [currentImageIndex, (currentImageIndex + 1) % images.length];
-    return images.filter((_, idx) => indices.includes(idx));
-  }, [images, currentImageIndex]);
 
   const renderItem = (item: MenuItem, index: number) => {
     const isActive = index === currentImageIndex;
