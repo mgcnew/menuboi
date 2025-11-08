@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { Volume2, VolumeX, Music, SkipForward, SkipBack } from "lucide-react";
 import { AudioTrack, Announcement } from "@/types/slideshow";
 import { supabase } from "@/integrations/supabase/client";
+import { useThrottle } from "@/hooks/use-throttle";
 
 interface AudioPlayerProps {
   tracks: AudioTrack[];
@@ -74,14 +75,24 @@ export const AudioPlayer = ({ tracks, announcements }: AudioPlayerProps) => {
     return interleaved;
   };
 
-  // Get public URL for an audio file
-  const getAudioUrl = (item: PlaylistItem): string => {
+  // Memoized URL cache for TV performance - calculates URLs only once
+  const audioUrlCache = useRef(new Map<string, string>());
+  
+  const getAudioUrl = useCallback((item: PlaylistItem): string => {
+    const cacheKey = `${item.type}-${item.filePath}`;
+    
+    if (audioUrlCache.current.has(cacheKey)) {
+      return audioUrlCache.current.get(cacheKey)!;
+    }
+    
     const bucket = item.type === 'track' ? 'audio-tracks' : 'announcements';
     const { data: { publicUrl } } = supabase.storage
       .from(bucket)
       .getPublicUrl(item.filePath);
+    
+    audioUrlCache.current.set(cacheKey, publicUrl);
     return publicUrl;
-  };
+  }, []);
 
   // Create an interleaved playlist: music -> announcement -> music -> announcement
   useEffect(() => {
@@ -98,13 +109,12 @@ export const AudioPlayer = ({ tracks, announcements }: AudioPlayerProps) => {
     const nextIndex = (currentIndex + 1) % playlist.length;
     const next = playlist[nextIndex];
 
-    // Generate URLs only for current and next audio
     const currentAudioUrl = getAudioUrl(current);
     const nextAudioUrl = getAudioUrl(next);
 
     setCurrentUrl(currentAudioUrl);
     setNextUrl(nextAudioUrl);
-  }, [currentIndex, playlist]);
+  }, [currentIndex, playlist, getAudioUrl]);
 
   // Play current audio
   useEffect(() => {
@@ -113,7 +123,7 @@ export const AudioPlayer = ({ tracks, announcements }: AudioPlayerProps) => {
 
     audio.src = currentUrl;
     audio.load();
-    audio.play().catch(err => console.log('Auto-play prevented:', err));
+    audio.play().catch(() => {}); // Silent catch for TV
   }, [currentUrl]);
 
   const handleEnded = () => {
@@ -156,33 +166,44 @@ export const AudioPlayer = ({ tracks, announcements }: AudioPlayerProps) => {
     }
   };
 
-  // Show/hide controls on mouse movement
+  // Throttled mouse movement for TV performance
+  const throttledShowControls = useThrottle(() => {
+    setShowControls(true);
+  }, 200);
+
   useEffect(() => {
     let timeout: NodeJS.Timeout;
 
     const handleMouseMove = () => {
-      setShowControls(true);
+      throttledShowControls();
       clearTimeout(timeout);
       timeout = setTimeout(() => setShowControls(false), 3000);
     };
 
-    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mousemove', handleMouseMove, { passive: true });
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
       clearTimeout(timeout);
     };
-  }, []);
+  }, [throttledShowControls]);
+
+  // Preload next audio efficiently - reuses same Audio instance
+  const preloadAudioRef = useRef<HTMLAudioElement | null>(null);
+  
+  useEffect(() => {
+    if (!nextUrl) return;
+    
+    if (!preloadAudioRef.current) {
+      preloadAudioRef.current = new Audio();
+    }
+    
+    preloadAudioRef.current.src = nextUrl;
+    preloadAudioRef.current.load();
+  }, [nextUrl]);
 
   if (playlist.length === 0 || !currentUrl) return null;
 
   const currentItem = playlist[currentIndex];
-  
-  // Preload next audio in background
-  if (nextUrl) {
-    const preloadAudio = new Audio();
-    preloadAudio.src = nextUrl;
-    preloadAudio.load();
-  }
 
   return (
     <>

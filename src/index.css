@@ -156,6 +156,7 @@
 
   .slideshow-image {
     @apply absolute inset-0 w-full h-full object-cover transition-opacity duration-1000;
+    will-change: opacity, transform;
   }
 
   .slideshow-image.active {
@@ -335,6 +336,7 @@
 /* Slideshow States */
 .slideshow-image {
   @apply absolute inset-0 w-full h-full object-cover;
+  will-change: opacity, transform;
 }
 
 .slideshow-image.entering-fade { animation: fade-in 1s ease-in-out forwards; }
