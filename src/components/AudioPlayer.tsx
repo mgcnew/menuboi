@@ -25,6 +25,12 @@ export const AudioPlayer = ({ tracks, announcements }: AudioPlayerProps) => {
   const [currentUrl, setCurrentUrl] = useState<string>("");
   const [nextUrl, setNextUrl] = useState<string>("");
 
+  const DEBUG = false; // Mudar para true para debug
+  
+  const log = (...args: any[]) => {
+    if (DEBUG) console.log('[AudioPlayer]', ...args);
+  };
+
   const shuffleArray = <T,>(array: T[]): T[] => {
     const shuffled = [...array];
     for (let i = shuffled.length - 1; i > 0; i--) {
@@ -96,6 +102,10 @@ export const AudioPlayer = ({ tracks, announcements }: AudioPlayerProps) => {
 
   // Create an interleaved playlist: music -> announcement -> music -> announcement
   useEffect(() => {
+    // Limpar cache ao receber novos dados
+    audioUrlCache.current.clear();
+    log('Creating new playlist with', tracks.length, 'tracks and', announcements.length, 'announcements');
+    
     const interleaved = createInterleavedPlaylist(tracks, announcements);
     setPlaylist(interleaved);
     setCurrentIndex(0);
@@ -112,6 +122,7 @@ export const AudioPlayer = ({ tracks, announcements }: AudioPlayerProps) => {
     const currentAudioUrl = getAudioUrl(current);
     const nextAudioUrl = getAudioUrl(next);
 
+    log('Loading audio:', current.type, '-', current.name);
     setCurrentUrl(currentAudioUrl);
     setNextUrl(nextAudioUrl);
   }, [currentIndex, playlist, getAudioUrl]);
@@ -121,6 +132,7 @@ export const AudioPlayer = ({ tracks, announcements }: AudioPlayerProps) => {
     const audio = audioRef.current;
     if (!audio || !currentUrl) return;
 
+    log('Playing:', currentItem?.name, 'URL:', currentUrl);
     audio.src = currentUrl;
     audio.load();
     audio.play().catch(() => {}); // Silent catch for TV
@@ -129,8 +141,11 @@ export const AudioPlayer = ({ tracks, announcements }: AudioPlayerProps) => {
   const handleEnded = () => {
     const nextIndex = currentIndex + 1;
     
+    log('Track ended, moving to next:', nextIndex);
+    
     // If we reached the end, create a new interleaved playlist with new random order
     if (nextIndex >= playlist.length) {
+      log('Regenerating playlist');
       const newInterleaved = createInterleavedPlaylist(tracks, announcements);
       setPlaylist(newInterleaved);
       setCurrentIndex(0);
@@ -195,8 +210,11 @@ export const AudioPlayer = ({ tracks, announcements }: AudioPlayerProps) => {
     
     if (!preloadAudioRef.current) {
       preloadAudioRef.current = new Audio();
+      preloadAudioRef.current.muted = true;
+      preloadAudioRef.current.autoplay = false;
     }
     
+    log('Preloading next audio:', nextUrl);
     preloadAudioRef.current.src = nextUrl;
     preloadAudioRef.current.load();
   }, [nextUrl]);
