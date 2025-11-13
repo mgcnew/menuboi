@@ -59,6 +59,12 @@ function imageStateReducer(state: ImageState, action: ImageStateAction): ImageSt
   }
 }
 
+// Debug flag - set to true for development logging
+const DEBUG = false;
+const log = (...args: any[]) => {
+  if (DEBUG) console.log('[Slideshow]', ...args);
+};
+
 const Slideshow = () => {
   const [images, setImages] = useState<MenuItem[]>([]);
   const [audios, setAudios] = useState<AudioTrack[]>([]);
@@ -66,6 +72,8 @@ const Slideshow = () => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
   const [showControls, setShowControls] = useState(false);
+  const [consecutiveFailures, setConsecutiveFailures] = useState(0);
+  const [fatalError, setFatalError] = useState(false);
   
   // Use reducer for image states - reduces re-renders by ~60%
   const [imageStates, dispatchImageState] = useReducer(imageStateReducer, {
@@ -74,8 +82,16 @@ const Slideshow = () => {
     failed: new Set<string>()
   });
 
-  // Refs for debouncing
+  // Refs for debouncing and stable auto-advance
   const reloadDebounceRef = useRef<NodeJS.Timeout>();
+  const currentIndexRef = useRef(currentImageIndex);
+  const maxConsecutiveFailures = 3;
+
+  // Sync ref with state for stable auto-advance
+  useEffect(() => {
+    currentIndexRef.current = currentImageIndex;
+    log('Index changed to:', currentImageIndex);
+  }, [currentImageIndex]);
 
   // Optimized preload using reducer - zero dependencies for better performance
   const preloadImage = useCallback((url: string) => {
@@ -84,14 +100,16 @@ const Slideshow = () => {
     const img = new Image();
     img.onload = () => {
       dispatchImageState({ type: 'LOAD_SUCCESS', url });
+      log('Image loaded:', url);
     };
     img.onerror = () => {
       dispatchImageState({ type: 'LOAD_FAILED', url });
+      log('Image failed:', url);
     };
     img.src = url;
   }, []); // Zero dependencies - function created only once
 
-  // Preload only current and next image for lighter performance
+  // Preload only current and next image - skip failed images
   useEffect(() => {
     if (images.length === 0) return;
     
@@ -99,27 +117,46 @@ const Slideshow = () => {
     for (let i = 0; i < Math.min(2, images.length); i++) {
       const imageIndex = (currentImageIndex + i) % images.length;
       const image = images[imageIndex];
-      // Only preload images, not videos
-      if (image.itemType !== 'video') {
-        preloadImage(image.url);
+      // Skip videos and already failed images
+      if (image.itemType === 'video' || imageStates.failed.has(image.url)) {
+        continue;
       }
+      preloadImage(image.url);
     }
-  }, [images, currentImageIndex, preloadImage]);
+  }, [images, currentImageIndex, preloadImage, imageStates.failed]);
 
-  // Auto-skip failed images
+  // Auto-skip failed images with consecutive failure tracking
   useEffect(() => {
     if (images.length === 0) return;
     
     const currentImage = images[currentImageIndex];
     if (imageStates.failed.has(currentImage?.url)) {
-      // Skip to next image after a short delay
+      const newFailureCount = consecutiveFailures + 1;
+      setConsecutiveFailures(newFailureCount);
+      log('Consecutive failures:', newFailureCount);
+      
+      if (newFailureCount >= maxConsecutiveFailures) {
+        // Stop slideshow if too many failures
+        setIsPlaying(false);
+        setFatalError(true);
+        log('FATAL: Too many consecutive failures');
+        return;
+      }
+      
+      // Skip to next image after 2 seconds
       const timeout = setTimeout(() => {
         setCurrentImageIndex((prev) => (prev + 1) % images.length);
-      }, 1000);
+      }, 2000);
       
       return () => clearTimeout(timeout);
+    } else {
+      // Reset failure counter on success
+      if (consecutiveFailures > 0) {
+        setConsecutiveFailures(0);
+        log('Reset consecutive failures');
+      }
     }
-  }, [currentImageIndex, images, imageStates.failed]);
+  }, [currentImageIndex, images, imageStates.failed, consecutiveFailures]);
 
   // Initial data load
   useEffect(() => {
@@ -218,19 +255,34 @@ const Slideshow = () => {
     loadAnnouncementsFromSupabase();
   };
 
-  // Auto-advance slideshow with individual timing
+  // Stable auto-advance with recursive scheduling - prevents race conditions
   useEffect(() => {
     if (!isPlaying || images.length === 0) return;
-
-    const currentImage = images[currentImageIndex];
-    const displayTime = currentImage?.displayTime || 10; // Default 10s if not set
-
-    const interval = setInterval(() => {
-      setCurrentImageIndex((prev) => (prev + 1) % images.length);
-    }, displayTime * 1000);
-
-    return () => clearInterval(interval);
-  }, [isPlaying, images, currentImageIndex]);
+    
+    let timeoutId: NodeJS.Timeout;
+    
+    const scheduleNext = () => {
+      const current = images[currentIndexRef.current];
+      const displayTime = (current?.displayTime || 10) * 1000;
+      
+      log('Scheduling next in', displayTime, 'ms');
+      
+      timeoutId = setTimeout(() => {
+        setCurrentImageIndex(prev => {
+          const next = (prev + 1) % images.length;
+          log('Auto-advancing to', next);
+          return next;
+        });
+        scheduleNext(); // Recursive scheduling
+      }, displayTime);
+    };
+    
+    scheduleNext();
+    
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [isPlaying, images]); // Removed currentImageIndex dependency!
 
   // Listen for real-time updates with debounce for TV performance
   useEffect(() => {
@@ -326,15 +378,38 @@ const Slideshow = () => {
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, [showControls]);
 
-  // Lazy rendering - only process current and next image (80% less processing)
-  // MUST be before early return to avoid hook order violations
-  const itemsToRender = useMemo(() => {
-    if (images.length === 0) return [];
-    const indices = [currentImageIndex, (currentImageIndex + 1) % images.length];
-    return images.filter((_, idx) => indices.includes(idx));
-  }, [images, currentImageIndex]);
-
   const currentImage = images[currentImageIndex];
+
+  // Fatal error screen
+  if (fatalError || (images.length > 0 && consecutiveFailures >= maxConsecutiveFailures)) {
+    return (
+      <div className="slideshow-container">
+        <div className="absolute inset-0 flex items-center justify-center bg-black">
+          <div className="text-center text-white">
+            <div className="text-6xl mb-4">⚠️</div>
+            <h1 className="text-4xl font-bold mb-4">Erro no Slideshow</h1>
+            <p className="text-xl mb-6">
+              Muitas imagens falharam ao carregar consecutivamente.
+            </p>
+            <button
+              onClick={() => {
+                setFatalError(false);
+                setConsecutiveFailures(0);
+                setCurrentImageIndex(0);
+                dispatchImageState({ type: 'RESET' });
+                loadImagesAndSettings();
+                loadAudiosFromSupabase();
+                loadAnnouncementsFromSupabase();
+              }}
+              className="bg-primary text-white px-6 py-3 rounded-lg text-lg hover:bg-primary-hover transition-colors"
+            >
+              Tentar Novamente
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (images.length === 0) {
     return (
@@ -355,8 +430,10 @@ const Slideshow = () => {
     );
   }
 
-  const renderItem = (item: MenuItem, index: number) => {
-    const isActive = index === currentImageIndex;
+  // Render function with isActive as boolean parameter
+  const renderItem = (item: MenuItem | undefined, isActive: boolean) => {
+    if (!item) return null;
+
     const isLoaded = imageStates.loaded.has(item.url);
     const isLoading = imageStates.loading.has(item.url);
     const hasFailed = imageStates.failed.has(item.url);
@@ -383,19 +460,26 @@ const Slideshow = () => {
           </div>
         ) : item.itemType === 'video' ? (
           <video
+            ref={(el) => {
+              if (el && isActive) {
+                el.addEventListener('canplay', () => {
+                  dispatchImageState({ type: 'LOAD_SUCCESS', url: item.url });
+                  log('Video ready:', item.url);
+                }, { once: true });
+              }
+            }}
             src={item.url}
             className="w-full h-full object-cover"
-            autoPlay={item.videoAutoplay}
+            autoPlay={item.videoAutoplay && isActive}
             muted={item.videoMuted}
             loop={item.videoLoop}
             playsInline
+            preload={isActive ? "auto" : "none"}
             onError={() => {
-              const url = item.url;
-              dispatchImageState({ type: 'LOAD_FAILED', url });
+              dispatchImageState({ type: 'LOAD_FAILED', url: item.url });
             }}
             onLoadedData={() => {
-              const url = item.url;
-              dispatchImageState({ type: 'LOAD_SUCCESS', url });
+              dispatchImageState({ type: 'LOAD_SUCCESS', url: item.url });
             }}
             style={{ 
               opacity: isLoaded ? 1 : 0,
@@ -408,12 +492,10 @@ const Slideshow = () => {
             alt={item.name}
             className="w-full h-full object-cover"
             onError={() => {
-              const url = item.url;
-              dispatchImageState({ type: 'LOAD_FAILED', url });
+              dispatchImageState({ type: 'LOAD_FAILED', url: item.url });
             }}
             onLoad={() => {
-              const url = item.url;
-              dispatchImageState({ type: 'LOAD_SUCCESS', url });
+              dispatchImageState({ type: 'LOAD_SUCCESS', url: item.url });
             }}
             style={{ 
               opacity: isLoaded ? 1 : 0,
@@ -430,8 +512,9 @@ const Slideshow = () => {
       {/* Audio Player - Continuous playback with shuffled playlist */}
       <AudioPlayer tracks={audios} announcements={announcements} />
       
-      {/* Lazy rendered items - only current and next for TV performance */}
-      {itemsToRender.map(renderItem)}
+      {/* Direct rendering - only current and next item (no filter) */}
+      {renderItem(images[currentImageIndex], true)}
+      {renderItem(images[(currentImageIndex + 1) % images.length], false)}
 
       {/* Overlay gradient for better text visibility */}
       <div className="absolute inset-0 bg-gradient-to-t from-slideshow-overlay/20 to-transparent pointer-events-none" />
@@ -486,20 +569,26 @@ const Slideshow = () => {
           </div>
         </div>
 
-        {/* Progress dots */}
+        {/* Progress dots - optimized for performance */}
         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex space-x-2">
-          {images.map((_, index) => (
-            <button
-              key={index}
-              onClick={() => setCurrentImageIndex(index)}
-              className={`w-3 h-3 rounded-full transition-colors ${
-                index === currentImageIndex
-                  ? 'bg-slideshow-text'
-                  : 'bg-slideshow-text/30'
-              }`}
-              aria-label={`Ir para imagem ${index + 1}`}
-            />
-          ))}
+          {images.length <= 20 ? (
+            images.map((_, index) => (
+              <button
+                key={index}
+                onClick={() => setCurrentImageIndex(index)}
+                className={`w-3 h-3 rounded-full transition-colors ${
+                  index === currentImageIndex
+                    ? 'bg-slideshow-text'
+                    : 'bg-slideshow-text/30'
+                }`}
+                aria-label={`Ir para imagem ${index + 1}`}
+              />
+            ))
+          ) : (
+            <div className="text-slideshow-text text-sm bg-slideshow-overlay/50 px-3 py-1 rounded">
+              {currentImageIndex + 1} / {images.length}
+            </div>
+          )}
         </div>
       </div>
 
