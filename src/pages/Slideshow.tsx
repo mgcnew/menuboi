@@ -471,7 +471,7 @@ const Slideshow = () => {
             src={item.url}
             className="w-full h-full object-cover"
             autoPlay={item.videoAutoplay && isActive}
-            muted={item.videoMuted}
+            muted={true}
             loop={item.videoLoop}
             playsInline
             preload={isActive ? "auto" : "none"}
