@@ -41,3 +41,19 @@ export interface Announcement {
   order: number;
   uploadedAt: Date;
 }
+
+export interface Playlist {
+  id: string;
+  name: string;
+  description?: string;
+  trackCount?: number;
+  createdAt: Date;
+}
+
+export interface PlaylistTrack {
+  id: string;
+  playlistId: string;
+  audioTrackId: string;
+  order: number;
+  track?: AudioTrack;
+}

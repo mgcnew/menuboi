@@ -10,7 +10,8 @@ import { AudioUpload } from "@/components/AudioUpload";
 import { AudioGrid } from "@/components/AudioGrid";
 import { AnnouncementUpload } from "@/components/AnnouncementUpload";
 import { AnnouncementGrid } from "@/components/AnnouncementGrid";
-import { Monitor, Settings, Upload, Play, Music, Radio } from "lucide-react";
+import { PlaylistManager } from "@/components/PlaylistManager";
+import { Monitor, Settings, Upload, Play, Music, Radio, ListMusic } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { TransitionType, DEFAULT_DISPLAY_TIME, DEFAULT_TRANSITION_TYPE, AudioTrack, Announcement } from "@/types/slideshow";
 import { supabase } from "@/integrations/supabase/client";
@@ -387,6 +388,57 @@ const Dashboard = () => {
     }
   };
 
+  const handleMultiAudioDelete = async (audioIds: string[]) => {
+    try {
+      const audiosToDelete = audios.filter(audio => audioIds.includes(audio.id));
+      
+      // Delete from database
+      const { error } = await audioTracksTable()
+        .delete()
+        .in('id', audioIds);
+
+      if (error) {
+        console.error('Error deleting audios from Supabase:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível remover os áudios do banco de dados.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Delete from storage
+      const fileNames = audiosToDelete
+        .map(audio => audio.url.split('/').pop())
+        .filter(Boolean) as string[];
+      
+      if (fileNames.length > 0) {
+        const { error: storageError } = await supabase.storage
+          .from('audio-tracks')
+          .remove(fileNames);
+        
+        if (storageError) {
+          console.error('Error deleting audios from storage:', storageError);
+        }
+      }
+
+      const updatedAudios = audios.filter(audio => !audioIds.includes(audio.id));
+      setAudios(updatedAudios);
+      
+      toast({
+        title: "Áudios removidos",
+        description: `${audioIds.length} áudio(s) removido(s) com sucesso.`,
+      });
+    } catch (error) {
+      console.error('Error deleting audios:', error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro ao remover os áudios.",
+        variant: "destructive"
+      });
+    }
+  };
+
   const handleAudioReorder = async (reorderedAudios: AudioTrack[]) => {
     try {
       const updates = reorderedAudios.map((audio, index) => ({
@@ -628,6 +680,7 @@ const Dashboard = () => {
                 audios={audios}
                 onAudioDelete={handleAudioDeleted}
                 onAudioReorder={handleAudioReorder}
+                onMultiDelete={handleMultiAudioDelete}
               />
             </Card>
 
@@ -651,6 +704,18 @@ const Dashboard = () => {
                 onAnnouncementDelete={handleAnnouncementDeleted}
                 onAnnouncementReorder={handleAnnouncementReorder}
               />
+            </Card>
+
+            {/* Playlists Section */}
+            <Card className="p-6 shadow-medium">
+              <div className="flex items-center space-x-3 mb-6">
+                <ListMusic className="h-5 w-5 text-primary" />
+                <h2 className="text-xl font-semibold">Playlists</h2>
+              </div>
+              <p className="text-sm text-muted-foreground mb-4">
+                Crie playlists para organizar suas músicas. Na TV, você poderá escolher qual playlist tocar.
+              </p>
+              <PlaylistManager />
             </Card>
           </div>
 

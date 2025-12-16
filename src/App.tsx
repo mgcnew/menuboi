@@ -6,8 +6,10 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Welcome from "./pages/Welcome";
 import Dashboard from "./pages/Dashboard";
 import TVPreparation from "./pages/TVPreparation";
+import TVStart from "./pages/TVStart";
 import Slideshow from "./pages/Slideshow";
 import NotFound from "./pages/NotFound";
+import { PWAInstallPrompt } from "./components/PWAInstallPrompt";
 
 const queryClient = new QueryClient();
 
@@ -16,11 +18,12 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
+      <PWAInstallPrompt />
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Welcome />} />
           <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/tv" element={<Slideshow />} />
+          <Route path="/tv" element={<TVStart />} />
           <Route path="/tv-config" element={<TVPreparation />} />
           <Route path="/slideshow" element={<Slideshow />} />
           {/* Redirect old routes */}

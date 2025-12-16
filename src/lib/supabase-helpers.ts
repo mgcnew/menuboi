@@ -14,3 +14,11 @@ export const audioTracksTable = () => {
 export const announcementsTable = () => {
   return supabase.from('announcements');
 };
+
+export const playlistsTable = () => {
+  return supabase.from('playlists');
+};
+
+export const playlistTracksTable = () => {
+  return supabase.from('playlist_tracks');
+};

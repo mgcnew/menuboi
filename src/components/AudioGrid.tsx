@@ -1,4 +1,5 @@
-import { Music, Trash2, GripVertical } from "lucide-react";
+import { useState } from "react";
+import { Music, Trash2, GripVertical, CheckSquare, Square, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { AudioTrack } from "@/types/slideshow";
@@ -10,28 +11,38 @@ import {
   useSensor,
   useSensors,
   DragEndEvent,
-} from '@dnd-kit/core';
+} from "@dnd-kit/core";
 import {
   arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
   useSortable,
   verticalListSortingStrategy,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 interface AudioGridProps {
   audios: AudioTrack[];
   onAudioDelete: (id: string) => void;
   onAudioReorder: (audios: AudioTrack[]) => void;
+  onMultiDelete?: (ids: string[]) => void;
 }
 
 interface SortableAudioProps {
   audio: AudioTrack;
   onDelete: (id: string) => void;
+  isSelected: boolean;
+  onToggleSelect: (id: string) => void;
+  selectionMode: boolean;
 }
 
-const SortableAudio = ({ audio, onDelete }: SortableAudioProps) => {
+const SortableAudio = ({
+  audio,
+  onDelete,
+  isSelected,
+  onToggleSelect,
+  selectionMode,
+}: SortableAudioProps) => {
   const {
     attributes,
     listeners,
@@ -49,15 +60,36 @@ const SortableAudio = ({ audio, onDelete }: SortableAudioProps) => {
 
   return (
     <div ref={setNodeRef} style={style}>
-      <Card className="p-4 hover:shadow-lg transition-shadow">
+      <Card
+        className={`p-4 hover:shadow-lg transition-all cursor-pointer ${
+          isSelected ? "ring-2 ring-primary bg-primary/5" : ""
+        }`}
+        onClick={() => selectionMode && onToggleSelect(audio.id)}
+      >
         <div className="flex items-center gap-3">
-          <button
-            className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground"
-            {...attributes}
-            {...listeners}
-          >
-            <GripVertical className="h-5 w-5" />
-          </button>
+          {selectionMode ? (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleSelect(audio.id);
+              }}
+              className="text-primary"
+            >
+              {isSelected ? (
+                <CheckSquare className="h-5 w-5" />
+              ) : (
+                <Square className="h-5 w-5" />
+              )}
+            </button>
+          ) : (
+            <button
+              className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground"
+              {...attributes}
+              {...listeners}
+            >
+              <GripVertical className="h-5 w-5" />
+            </button>
+          )}
 
           <div className="flex-shrink-0">
             <div className="w-12 h-12 rounded-lg bg-accent/50 flex items-center justify-center">
@@ -72,21 +104,31 @@ const SortableAudio = ({ audio, onDelete }: SortableAudioProps) => {
             </p>
           </div>
 
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => onDelete(audio.id)}
-            className="text-destructive hover:text-destructive hover:bg-destructive/10"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
+          {!selectionMode && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => onDelete(audio.id)}
+              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </Card>
     </div>
   );
 };
 
-export const AudioGrid = ({ audios, onAudioDelete, onAudioReorder }: AudioGridProps) => {
+export const AudioGrid = ({
+  audios,
+  onAudioDelete,
+  onAudioReorder,
+  onMultiDelete,
+}: AudioGridProps) => {
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [selectionMode, setSelectionMode] = useState(false);
+
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
@@ -101,13 +143,46 @@ export const AudioGrid = ({ audios, onAudioDelete, onAudioReorder }: AudioGridPr
       const oldIndex = audios.findIndex((audio) => audio.id === active.id);
       const newIndex = audios.findIndex((audio) => audio.id === over.id);
 
-      const reorderedAudios = arrayMove(audios, oldIndex, newIndex).map((audio, index) => ({
-        ...audio,
-        order: index,
-      }));
+      const reorderedAudios = arrayMove(audios, oldIndex, newIndex).map(
+        (audio, index) => ({
+          ...audio,
+          order: index,
+        })
+      );
 
       onAudioReorder(reorderedAudios);
     }
+  };
+
+  const toggleSelect = (id: string) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+  };
+
+  const selectAll = () => {
+    setSelectedIds(new Set(audios.map((a) => a.id)));
+  };
+
+  const clearSelection = () => {
+    setSelectedIds(new Set());
+    setSelectionMode(false);
+  };
+
+  const handleMultiDelete = () => {
+    if (selectedIds.size === 0) return;
+
+    if (onMultiDelete) {
+      onMultiDelete(Array.from(selectedIds));
+    } else {
+      // Fallback: delete one by one
+      selectedIds.forEach((id) => onAudioDelete(id));
+    }
+    clearSelection();
   };
 
   if (audios.length === 0) {
@@ -121,25 +196,68 @@ export const AudioGrid = ({ audios, onAudioDelete, onAudioReorder }: AudioGridPr
   }
 
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCenter}
-      onDragEnd={handleDragEnd}
-    >
-      <SortableContext
-        items={audios.map(a => a.id)}
-        strategy={verticalListSortingStrategy}
-      >
-        <div className="space-y-3">
-          {audios.map((audio) => (
-            <SortableAudio
-              key={audio.id}
-              audio={audio}
-              onDelete={onAudioDelete}
-            />
-          ))}
+    <div className="space-y-4">
+      {/* Toolbar */}
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-2">
+          {!selectionMode ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSelectionMode(true)}
+            >
+              <CheckSquare className="h-4 w-4 mr-2" />
+              Selecionar
+            </Button>
+          ) : (
+            <>
+              <Button variant="outline" size="sm" onClick={selectAll}>
+                Selecionar Todos
+              </Button>
+              <Button variant="ghost" size="sm" onClick={clearSelection}>
+                <X className="h-4 w-4 mr-1" />
+                Cancelar
+              </Button>
+            </>
+          )}
         </div>
-      </SortableContext>
-    </DndContext>
+
+        {selectionMode && selectedIds.size > 0 && (
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={handleMultiDelete}
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Excluir ({selectedIds.size})
+          </Button>
+        )}
+      </div>
+
+      {/* Audio List */}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext
+          items={audios.map((a) => a.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          <div className="space-y-3">
+            {audios.map((audio) => (
+              <SortableAudio
+                key={audio.id}
+                audio={audio}
+                onDelete={onAudioDelete}
+                isSelected={selectedIds.has(audio.id)}
+                onToggleSelect={toggleSelect}
+                selectionMode={selectionMode}
+              />
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
+    </div>
   );
 };
