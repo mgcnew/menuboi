@@ -5,40 +5,71 @@ import { AudioTrack, Announcement } from "@/types/slideshow";
 import { supabase } from "@/integrations/supabase/client";
 import { menuItemsTable, audioTracksTable, announcementsTable, playlistTracksTable } from "@/lib/supabase-helpers";
 import { AudioPlayer } from "@/components/AudioPlayer";
-import { ChevronLeft, ChevronRight, Pause, Play, RefreshCw } from "lucide-react";
+import { ChevronLeft, ChevronRight, Pause, Play, RefreshCw, Loader2 } from "lucide-react";
 
 // Minimal image state management
 type ImageState = {
   loaded: Set<string>;
   failed: Set<string>;
+  loading: Set<string>;
 };
 
 type ImageAction =
+  | { type: "LOADING"; url: string }
   | { type: "LOADED"; url: string }
   | { type: "FAILED"; url: string }
   | { type: "RESET" };
 
 function imageReducer(state: ImageState, action: ImageAction): ImageState {
   switch (action.type) {
-    case "LOADED":
+    case "LOADING":
+      if (state.loading.has(action.url)) return state;
+      return { ...state, loading: new Set(state.loading).add(action.url) };
+    case "LOADED": {
       if (state.loaded.has(action.url)) return state;
-      return { ...state, loaded: new Set(state.loaded).add(action.url) };
-    case "FAILED":
+      const newLoading = new Set(state.loading);
+      newLoading.delete(action.url);
+      return { 
+        ...state, 
+        loaded: new Set(state.loaded).add(action.url),
+        loading: newLoading
+      };
+    }
+    case "FAILED": {
       if (state.failed.has(action.url)) return state;
-      return { ...state, failed: new Set(state.failed).add(action.url) };
+      const newLoading = new Set(state.loading);
+      newLoading.delete(action.url);
+      return { 
+        ...state, 
+        failed: new Set(state.failed).add(action.url),
+        loading: newLoading
+      };
+    }
     case "RESET":
-      return { loaded: new Set(), failed: new Set() };
+      return { loaded: new Set(), failed: new Set(), loading: new Set() };
     default:
       return state;
   }
 }
 
-// Preload image utility
-const preloadImage = (url: string): Promise<void> => {
+// Preload image utility with timeout
+const preloadImage = (url: string, timeout = 10000): Promise<void> => {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.onload = () => resolve();
-    img.onerror = () => reject();
+    const timer = setTimeout(() => {
+      img.onload = null;
+      img.onerror = null;
+      resolve(); // Resolve anyway after timeout - image might still work
+    }, timeout);
+    
+    img.onload = () => {
+      clearTimeout(timer);
+      resolve();
+    };
+    img.onerror = () => {
+      clearTimeout(timer);
+      reject();
+    };
     img.src = url;
   });
 };
@@ -53,20 +84,44 @@ const Slideshow = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
   const [showControls, setShowControls] = useState(false);
+  const [forceShow, setForceShow] = useState(false);
 
   const [imageState, dispatch] = useReducer(imageReducer, {
     loaded: new Set<string>(),
     failed: new Set<string>(),
+    loading: new Set<string>(),
   });
 
   const indexRef = useRef(currentIndex);
   const controlsTimeoutRef = useRef<NodeJS.Timeout>();
   const reloadDebounceRef = useRef<NodeJS.Timeout>();
+  const forceShowTimeoutRef = useRef<NodeJS.Timeout>();
 
   // Sync ref
   useEffect(() => {
     indexRef.current = currentIndex;
   }, [currentIndex]);
+
+  // Force show after timeout - fallback for TV devices
+  useEffect(() => {
+    if (images.length === 0) return;
+    
+    const current = images[currentIndex];
+    if (current.itemType === "video") return;
+    
+    // Reset force show on index change
+    setForceShow(false);
+    
+    // If not loaded after 3 seconds, force show
+    forceShowTimeoutRef.current = setTimeout(() => {
+      if (!imageState.loaded.has(current.url)) {
+        console.log("[Slideshow] Force showing image after timeout:", current.name);
+        setForceShow(true);
+      }
+    }, 3000);
+    
+    return () => clearTimeout(forceShowTimeoutRef.current);
+  }, [currentIndex, images, imageState.loaded]);
 
   // Load data
   const loadData = useCallback(async () => {
@@ -160,7 +215,7 @@ const Slideshow = () => {
         );
       }
     } catch (e) {
-      // Silent for TV
+      console.error("[Slideshow] Load error:", e);
     }
   }, [playlistId]);
 
@@ -168,28 +223,33 @@ const Slideshow = () => {
     loadData();
   }, [loadData]);
 
-  // Preload current + next image
+  // Preload current + next 3 images (more aggressive for TV)
   useEffect(() => {
     if (images.length === 0) return;
 
     const preloadNext = async () => {
-      for (let i = 0; i < Math.min(2, images.length); i++) {
+      for (let i = 0; i < Math.min(3, images.length); i++) {
         const idx = (currentIndex + i) % images.length;
         const img = images[idx];
-        if (img.itemType === "video" || imageState.loaded.has(img.url) || imageState.failed.has(img.url)) {
+        if (img.itemType === "video" || imageState.loaded.has(img.url) || imageState.failed.has(img.url) || imageState.loading.has(img.url)) {
           continue;
         }
+        
+        dispatch({ type: "LOADING", url: img.url });
+        
         try {
-          await preloadImage(img.url);
+          await preloadImage(img.url, 10000);
           dispatch({ type: "LOADED", url: img.url });
+          console.log("[Slideshow] Preloaded:", img.name);
         } catch {
           dispatch({ type: "FAILED", url: img.url });
+          console.warn("[Slideshow] Failed to preload:", img.name);
         }
       }
     };
 
     preloadNext();
-  }, [images, currentIndex, imageState.loaded, imageState.failed]);
+  }, [images, currentIndex, imageState.loaded, imageState.failed, imageState.loading]);
 
   // Auto-advance with stable timer
   useEffect(() => {
@@ -288,7 +348,11 @@ const Slideshow = () => {
 
   const current = images[currentIndex];
   const isLoaded = imageState.loaded.has(current.url);
+  const isLoading = imageState.loading.has(current.url);
   const hasFailed = imageState.failed.has(current.url);
+  
+  // Show image if: loaded, forced after timeout, or not yet tried
+  const shouldShowImage = isLoaded || forceShow || (!isLoading && !hasFailed);
 
   return (
     <div className="min-h-screen bg-black relative overflow-hidden">
@@ -297,11 +361,12 @@ const Slideshow = () => {
 
       {/* Current Image/Video */}
       <div className="absolute inset-0">
-        {hasFailed ? (
+        {hasFailed && !forceShow ? (
           <div className="w-full h-full flex items-center justify-center text-white">
             <div className="text-center">
               <div className="text-4xl mb-2">⚠️</div>
               <p>Erro ao carregar</p>
+              <p className="text-sm opacity-50 mt-2">{current.name}</p>
             </div>
           </div>
         ) : current.itemType === "video" ? (
@@ -315,16 +380,32 @@ const Slideshow = () => {
             playsInline
           />
         ) : (
-          <img
-            key={current.id}
-            src={current.url}
-            alt={current.name}
-            className={`w-full h-full object-cover transition-opacity duration-500 ${
-              isLoaded ? "opacity-100" : "opacity-0"
-            }`}
-            onLoad={() => dispatch({ type: "LOADED", url: current.url })}
-            onError={() => dispatch({ type: "FAILED", url: current.url })}
-          />
+          <>
+            {/* Loading indicator - show while loading and not forced */}
+            {isLoading && !forceShow && (
+              <div className="absolute inset-0 flex items-center justify-center z-10">
+                <Loader2 className="h-16 w-16 text-white animate-spin" />
+              </div>
+            )}
+            
+            {/* Image - always render, control visibility */}
+            <img
+              key={current.id}
+              src={current.url}
+              alt={current.name}
+              className={`w-full h-full object-cover transition-opacity duration-300 ${
+                shouldShowImage ? "opacity-100" : "opacity-0"
+              }`}
+              onLoad={() => {
+                dispatch({ type: "LOADED", url: current.url });
+                console.log("[Slideshow] Image loaded:", current.name);
+              }}
+              onError={() => {
+                dispatch({ type: "FAILED", url: current.url });
+                console.error("[Slideshow] Image failed:", current.name);
+              }}
+            />
+          </>
         )}
       </div>
 
