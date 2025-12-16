@@ -113,6 +113,69 @@ export type Database = {
         }
         Relationships: []
       }
+      playlist_tracks: {
+        Row: {
+          audio_track_id: string
+          created_at: string
+          id: string
+          order_index: number
+          playlist_id: string
+        }
+        Insert: {
+          audio_track_id: string
+          created_at?: string
+          id?: string
+          order_index?: number
+          playlist_id: string
+        }
+        Update: {
+          audio_track_id?: string
+          created_at?: string
+          id?: string
+          order_index?: number
+          playlist_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "playlist_tracks_audio_track_id_fkey"
+            columns: ["audio_track_id"]
+            isOneToOne: false
+            referencedRelation: "audio_tracks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "playlist_tracks_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "playlists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      playlists: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
