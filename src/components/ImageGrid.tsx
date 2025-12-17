@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { MenuItem } from "@/pages/Dashboard";
-import { Card } from "./ui/card";
 import { Button } from "./ui/button";
-import { Trash2, Eye, GripVertical, Settings } from "lucide-react";
+import { Trash2, Eye, GripVertical, Settings, Play } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { ImageConfigModal } from "./ImageConfigModal";
 
@@ -19,17 +18,7 @@ export const ImageGrid = ({ images, onImageDelete, onImageReorder, onImageUpdate
   const [configImage, setConfigImage] = useState<MenuItem | null>(null);
 
   if (images.length === 0) {
-    return (
-      <div className="text-center py-12">
-        <div className="text-6xl mb-4 opacity-20">🖼️</div>
-        <h3 className="text-lg font-medium text-muted-foreground">
-          Nenhuma imagem carregada
-        </h3>
-        <p className="text-muted-foreground">
-          Faça upload das suas imagens para começar
-        </p>
-      </div>
-    );
+    return null;
   }
 
   const sortedImages = [...images].sort((a, b) => a.order - b.order);
@@ -59,7 +48,6 @@ export const ImageGrid = ({ images, onImageDelete, onImageReorder, onImageUpdate
     newImages.splice(draggedIndex, 1);
     newImages.splice(targetIndex, 0, draggedItem);
 
-    // Update order property
     const reorderedImages = newImages.map((img, index) => ({
       ...img,
       order: index
@@ -73,99 +61,93 @@ export const ImageGrid = ({ images, onImageDelete, onImageReorder, onImageUpdate
     setDraggedItem(null);
   };
 
-  const formatDate = (date: Date) => {
-    return new Intl.DateTimeFormat('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    }).format(new Date(date));
-  };
-
   return (
     <>
-      <div className="image-grid">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
         {sortedImages.map((image, index) => (
-          <Card
+          <div
             key={image.id}
-            className={`relative group cursor-move transition-all duration-200 ${
-              draggedItem?.id === image.id ? 'opacity-50 scale-95' : ''
-            }`}
+            className={`
+              relative group cursor-move rounded-lg overflow-hidden bg-muted
+              aspect-video transition-all duration-200
+              ${draggedItem?.id === image.id ? 'opacity-50 scale-95' : 'hover:ring-2 hover:ring-primary/50'}
+            `}
             draggable
             onDragStart={(e) => handleDragStart(e, image)}
             onDragOver={handleDragOver}
             onDrop={(e) => handleDrop(e, image)}
             onDragEnd={handleDragEnd}
           >
-            {/* Order indicator */}
-            <div className="absolute top-2 left-2 bg-primary text-primary-foreground text-xs font-bold px-2 py-1 rounded-md z-10">
+            {/* Order Badge */}
+            <div className="absolute top-1 left-1 bg-black/70 text-white text-xs font-bold px-1.5 py-0.5 rounded z-10">
               {index + 1}
             </div>
 
-            {/* Drag handle */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-              <GripVertical className="h-6 w-6 text-white drop-shadow-lg" />
-            </div>
+            {/* Video indicator */}
+            {image.itemType === 'video' && (
+              <div className="absolute top-1 right-1 bg-black/70 text-white p-1 rounded z-10">
+                <Play className="h-3 w-3" />
+              </div>
+            )}
 
             {/* Media */}
-            <div className="aspect-video bg-muted rounded-t-lg overflow-hidden">
-              {image.itemType === 'video' ? (
-                <video
-                  src={image.url}
-                  className="w-full h-full object-cover transition-transform group-hover:scale-105"
-                  muted
-                  playsInline
-                />
-              ) : (
-                <img
-                  src={image.url}
-                  alt={image.name}
-                  className="w-full h-full object-cover transition-transform group-hover:scale-105"
-                />
-              )}
+            {image.itemType === 'video' ? (
+              <video
+                src={image.url}
+                className="w-full h-full object-cover"
+                muted
+                playsInline
+              />
+            ) : (
+              <img
+                src={image.url}
+                alt={image.name}
+                className="w-full h-full object-cover"
+              />
+            )}
+
+            {/* Hover Overlay */}
+            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
+              <Button
+                variant="secondary"
+                size="icon"
+                className="h-7 w-7"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setPreviewImage(image);
+                }}
+              >
+                <Eye className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant="secondary"
+                size="icon"
+                className="h-7 w-7"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setConfigImage(image);
+                }}
+              >
+                <Settings className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant="destructive"
+                size="icon"
+                className="h-7 w-7"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onImageDelete(image.id);
+                }}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
             </div>
 
-            {/* Image info */}
-            <div className="p-3">
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="font-medium text-sm truncate">{image.name}</h4>
-                <div className="flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => setPreviewImage(image)}
-                    className="h-8 w-8 p-0"
-                  >
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => setConfigImage(image)}
-                    className="h-8 w-8 p-0"
-                  >
-                    <Settings className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => onImageDelete(image.id)}
-                    className="h-8 w-8 p-0"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-              
-              <div className="text-sm text-muted-foreground space-y-1">
-                <p>{formatDate(image.uploadedAt)}</p>
-                <p className="capitalize">
-                  {image.transitionType?.replace('-', ' ')} • {image.displayTime}s
-                </p>
-              </div>
+            {/* Drag Handle */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 group-hover:opacity-100">
+              <GripVertical className="h-5 w-5 text-white/50" />
             </div>
-          </Card>
+          </div>
         ))}
       </div>
 

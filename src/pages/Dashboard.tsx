@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ImageUpload } from "@/components/ImageUpload";
 import { ImageGrid } from "@/components/ImageGrid";
 import { SlideshowPreview } from "@/components/SlideshowPreview";
@@ -11,11 +12,12 @@ import { AudioGrid } from "@/components/AudioGrid";
 import { AnnouncementUpload } from "@/components/AnnouncementUpload";
 import { AnnouncementGrid } from "@/components/AnnouncementGrid";
 import { PlaylistManager } from "@/components/PlaylistManager";
-import { Monitor, Settings, Upload, Play, Music, Radio, ListMusic } from "lucide-react";
+import { Monitor, Play, Image, Music, Settings, ExternalLink } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { TransitionType, DEFAULT_DISPLAY_TIME, DEFAULT_TRANSITION_TYPE, AudioTrack, Announcement } from "@/types/slideshow";
 import { supabase } from "@/integrations/supabase/client";
 import { menuItemsTable, audioTracksTable, announcementsTable } from "@/lib/supabase-helpers";
+import { Badge } from "@/components/ui/badge";
 
 export interface MenuItem {
   id: string;
@@ -31,7 +33,6 @@ export interface MenuItem {
   videoLoop?: boolean;
 }
 
-// Backward compatibility alias
 export type MenuImage = MenuItem;
 
 const Dashboard = () => {
@@ -56,7 +57,6 @@ const Dashboard = () => {
 
       if (error) {
         console.error('Error loading images from Supabase:', error);
-        // Fallback to localStorage
         loadImagesFromLocalStorage();
         return;
       }
@@ -82,7 +82,6 @@ const Dashboard = () => {
           };
         });
         setImages(formattedImages);
-        // CRITICAL: Always sync to localStorage after loading from Supabase
         saveToLocalStorage(formattedImages);
       }
     } catch (error) {
@@ -118,11 +117,10 @@ const Dashboard = () => {
 
   const handleImagesUploaded = async (newImages: MenuItem[]) => {
     try {
-      // Insert new images into Supabase
       const imagesToInsert = newImages.map((img, index) => ({
         id: img.id,
         name: img.name,
-        file_path: img.url.split('/').pop(), // Extract filename from URL
+        file_path: img.url.split('/').pop(),
         order_index: images.length + index,
         display_time: DEFAULT_DISPLAY_TIME,
         transition_type: DEFAULT_TRANSITION_TYPE,
@@ -145,7 +143,6 @@ const Dashboard = () => {
         return;
       }
 
-      // Reload images from Supabase to get the most up-to-date data
       await loadImagesFromSupabase();
       
       toast({
@@ -164,7 +161,6 @@ const Dashboard = () => {
 
   const handleImageDeleted = async (imageId: string) => {
     try {
-      // First get the image data to get the file_path for storage deletion
       const imageToDelete = images.find(img => img.id === imageId);
       
       const { error } = await menuItemsTable()
@@ -181,7 +177,6 @@ const Dashboard = () => {
         return;
       }
 
-      // Delete from storage if we have the image data
       if (imageToDelete) {
         const fileName = imageToDelete.url.split('/').pop();
         if (fileName) {
@@ -215,7 +210,6 @@ const Dashboard = () => {
 
   const handleImageReorder = async (reorderedImages: MenuItem[]) => {
     try {
-      // Update order in Supabase
       const updates = reorderedImages.map((img, index) => ({
         id: img.id,
         order_index: index
@@ -392,7 +386,6 @@ const Dashboard = () => {
     try {
       const audiosToDelete = audios.filter(audio => audioIds.includes(audio.id));
       
-      // Delete from database
       const { error } = await audioTracksTable()
         .delete()
         .in('id', audioIds);
@@ -407,7 +400,6 @@ const Dashboard = () => {
         return;
       }
 
-      // Delete from storage
       const fileNames = audiosToDelete
         .map(audio => audio.url.split('/').pop())
         .filter(Boolean) as string[];
@@ -615,180 +607,235 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-card shadow-soft">
-        <div className="container mx-auto px-6 py-4">
+      {/* Compact Header */}
+      <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
+        <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <Monitor className="h-8 w-8 text-primary" />
-              <div>
-                <h1 className="text-2xl font-bold text-foreground">Menu Board Digital</h1>
-                <p className="text-sm text-muted-foreground">Painel de Controle</p>
+            <div className="flex items-center gap-3">
+              <Monitor className="h-6 w-6 text-primary" />
+              <h1 className="text-xl font-semibold">Menu Board</h1>
+              <div className="hidden sm:flex items-center gap-2">
+                <Badge variant="secondary" className="font-normal">
+                  {images.length} mídia{images.length !== 1 ? 's' : ''}
+                </Badge>
+                <Badge variant="outline" className="font-normal">
+                  {audios.length} música{audios.length !== 1 ? 's' : ''}
+                </Badge>
               </div>
             </div>
             
-            <div className="flex items-center space-x-3">
-              <Button
-                onClick={openSlideshow}
-                className="bg-gradient-primary hover:bg-primary-hover transition-smooth"
-                disabled={images.length === 0}
-              >
-                <Play className="mr-2 h-4 w-4" />
-                Abrir Slideshow
-              </Button>
-            </div>
+            <Button
+              onClick={openSlideshow}
+              size="sm"
+              disabled={images.length === 0}
+              className="gap-2"
+            >
+              <Play className="h-4 w-4" />
+              <span className="hidden sm:inline">Abrir Slideshow</span>
+            </Button>
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-6 py-8">
-        <div className="grid gap-8 lg:grid-cols-3">
-          {/* Upload Section */}
-          <div className="lg:col-span-2 space-y-6">
-            <Card className="p-6 shadow-medium">
-              <div className="flex items-center space-x-3 mb-6">
-                <Upload className="h-5 w-5 text-primary" />
-                <h2 className="text-xl font-semibold">Upload de Imagens</h2>
-              </div>
-              <ImageUpload onImagesUploaded={handleImagesUploaded} />
-            </Card>
+      <main className="container mx-auto px-4 py-6">
+        <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+          {/* Main Content with Tabs */}
+          <div>
+            <Tabs defaultValue="media" className="space-y-4">
+              <TabsList className="grid w-full grid-cols-3 h-11">
+                <TabsTrigger value="media" className="gap-2">
+                  <Image className="h-4 w-4" />
+                  <span className="hidden sm:inline">Mídia</span>
+                </TabsTrigger>
+                <TabsTrigger value="audio" className="gap-2">
+                  <Music className="h-4 w-4" />
+                  <span className="hidden sm:inline">Áudio</span>
+                </TabsTrigger>
+                <TabsTrigger value="settings" className="gap-2">
+                  <Settings className="h-4 w-4" />
+                  <span className="hidden sm:inline">Config</span>
+                </TabsTrigger>
+              </TabsList>
 
-            {/* Images Grid */}
-            <Card className="p-6 shadow-medium">
-              <h2 className="text-xl font-semibold mb-6">Imagens do Menu ({images.length})</h2>
-              <ImageGrid
-                images={images}
-                onImageDelete={handleImageDeleted}
-                onImageReorder={handleImageReorder}
-                onImageUpdate={handleImageUpdate}
-              />
-            </Card>
+              {/* Media Tab */}
+              <TabsContent value="media" className="space-y-4 mt-4">
+                <ImageUpload onImagesUploaded={handleImagesUploaded} />
+                
+                {images.length > 0 && (
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-medium text-muted-foreground">
+                      Imagens e Vídeos ({images.length})
+                    </h3>
+                    <ImageGrid
+                      images={images}
+                      onImageDelete={handleImageDeleted}
+                      onImageReorder={handleImageReorder}
+                      onImageUpdate={handleImageUpdate}
+                    />
+                  </div>
+                )}
 
-            {/* Audio Section */}
-            <Card className="p-6 shadow-medium">
-              <div className="flex items-center space-x-3 mb-6">
-                <Music className="h-5 w-5 text-primary" />
-                <h2 className="text-xl font-semibold">Sistema de Rádio Contínuo</h2>
-              </div>
-              <AudioUpload onAudiosUploaded={handleAudiosUploaded} />
-            </Card>
+                {images.length === 0 && (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Image className="h-12 w-12 mx-auto mb-3 opacity-20" />
+                    <p>Nenhuma mídia carregada</p>
+                    <p className="text-sm">Faça upload para começar</p>
+                  </div>
+                )}
+              </TabsContent>
 
-            {/* Audio Grid */}
-            <Card className="p-6 shadow-medium">
-              <h2 className="text-xl font-semibold mb-6">Músicas/Vinhetas ({audios.length})</h2>
-              <AudioGrid
-                audios={audios}
-                onAudioDelete={handleAudioDeleted}
-                onAudioReorder={handleAudioReorder}
-                onMultiDelete={handleMultiAudioDelete}
-              />
-            </Card>
+              {/* Audio Tab */}
+              <TabsContent value="audio" className="space-y-6 mt-4">
+                {/* Music Section */}
+                <div className="space-y-3">
+                  <h3 className="text-sm font-medium text-muted-foreground">Músicas</h3>
+                  <AudioUpload onAudiosUploaded={handleAudiosUploaded} />
+                  {audios.length > 0 && (
+                    <AudioGrid
+                      audios={audios}
+                      onAudioDelete={handleAudioDeleted}
+                      onAudioReorder={handleAudioReorder}
+                      onMultiDelete={handleMultiAudioDelete}
+                    />
+                  )}
+                </div>
 
-            {/* Announcement Section */}
-            <Card className="p-6 shadow-medium">
-              <div className="flex items-center space-x-3 mb-6">
-                <Radio className="h-5 w-5 text-primary" />
-                <h2 className="text-xl font-semibold">Locuções e Vinhetas</h2>
-              </div>
-              <p className="text-sm text-muted-foreground mb-4">
-                As locuções serão alternadas aleatoriamente com as músicas durante a reprodução.
-              </p>
-              <AnnouncementUpload onAnnouncementsUploaded={handleAnnouncementsUploaded} />
-            </Card>
+                {/* Announcements Section */}
+                <div className="space-y-3 pt-4 border-t">
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground">Locuções</h3>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Alternadas com as músicas automaticamente
+                    </p>
+                  </div>
+                  <AnnouncementUpload onAnnouncementsUploaded={handleAnnouncementsUploaded} />
+                  {announcements.length > 0 && (
+                    <AnnouncementGrid
+                      announcements={announcements}
+                      onAnnouncementDelete={handleAnnouncementDeleted}
+                      onAnnouncementReorder={handleAnnouncementReorder}
+                    />
+                  )}
+                </div>
 
-            {/* Announcement Grid */}
-            <Card className="p-6 shadow-medium">
-              <h2 className="text-xl font-semibold mb-6">Locuções ({announcements.length})</h2>
-              <AnnouncementGrid
-                announcements={announcements}
-                onAnnouncementDelete={handleAnnouncementDeleted}
-                onAnnouncementReorder={handleAnnouncementReorder}
-              />
-            </Card>
+                {/* Playlists Section */}
+                <div className="space-y-3 pt-4 border-t">
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground">Playlists</h3>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Organize suas músicas em playlists
+                    </p>
+                  </div>
+                  <PlaylistManager />
+                </div>
+              </TabsContent>
 
-            {/* Playlists Section */}
-            <Card className="p-6 shadow-medium">
-              <div className="flex items-center space-x-3 mb-6">
-                <ListMusic className="h-5 w-5 text-primary" />
-                <h2 className="text-xl font-semibold">Playlists</h2>
-              </div>
-              <p className="text-sm text-muted-foreground mb-4">
-                Crie playlists para organizar suas músicas. Na TV, você poderá escolher qual playlist tocar.
-              </p>
-              <PlaylistManager />
-            </Card>
+              {/* Settings Tab */}
+              <TabsContent value="settings" className="space-y-4 mt-4">
+                <Card className="p-4">
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="transition-time" className="text-sm">
+                        Tempo entre imagens
+                      </Label>
+                      <div className="flex items-center gap-2 mt-2">
+                        <Input
+                          id="transition-time"
+                          type="number"
+                          min="5"
+                          max="60"
+                          value={transitionTime}
+                          onChange={(e) => handleTransitionTimeChange(parseInt(e.target.value))}
+                          className="w-20"
+                        />
+                        <span className="text-sm text-muted-foreground">segundos</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Recomendado: 10-15 segundos
+                      </p>
+                    </div>
+
+                    <div className="pt-4 border-t">
+                      <Label className="text-sm">Link do Slideshow</Label>
+                      <div className="flex items-center gap-2 mt-2">
+                        <code className="flex-1 p-2 bg-muted rounded text-xs font-mono truncate">
+                          {window.location.origin}/slideshow
+                        </code>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            navigator.clipboard.writeText(`${window.location.origin}/slideshow`);
+                            toast({ title: "Link copiado!" });
+                          }}
+                        >
+                          Copiar
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Acesse este link na TV
+                      </p>
+                    </div>
+                  </div>
+                </Card>
+
+                {images.length === 0 && (
+                  <Card className="p-4 bg-primary/5 border-primary/20">
+                    <h4 className="font-medium text-sm mb-2">Primeiros Passos</h4>
+                    <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
+                      <li>Faça upload das suas imagens na aba Mídia</li>
+                      <li>Configure o tempo de transição</li>
+                      <li>Clique em "Abrir Slideshow"</li>
+                      <li>Acesse o link na TV</li>
+                    </ol>
+                  </Card>
+                )}
+              </TabsContent>
+            </Tabs>
           </div>
 
-          {/* Settings Sidebar */}
-          <div className="space-y-6">
-            {/* Preview */}
-            <Card className="p-6 shadow-medium">
-              <h2 className="text-xl font-semibold mb-4">Preview do Slideshow</h2>
-              <SlideshowPreview images={images} />
-            </Card>
-
-            <Card className="p-6 shadow-medium">
-              <div className="flex items-center space-x-3 mb-6">
-                <Settings className="h-5 w-5 text-primary" />
-                <h2 className="text-xl font-semibold">Configurações</h2>
-              </div>
-              
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="transition-time">Tempo entre imagens (segundos)</Label>
-                  <Input
-                    id="transition-time"
-                    type="number"
-                    min="5"
-                    max="60"
-                    value={transitionTime}
-                    onChange={(e) => handleTransitionTimeChange(parseInt(e.target.value))}
-                    className="mt-2"
-                  />
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Recomendado: 10-15 segundos
-                  </p>
-                </div>
-
-                <div className="pt-4 border-t">
-                  <h3 className="font-medium mb-2">Link do Slideshow</h3>
-                  <p className="text-sm text-muted-foreground mb-3">
-                    Acesse este link na TV para iniciar o slideshow:
-                  </p>
-                  <div className="p-3 bg-muted rounded-lg text-sm font-mono break-all">
-                    {window.location.origin}/slideshow
-                  </div>
-                </div>
-
-                <div className="pt-4 border-t">
-                  <h3 className="font-medium mb-2">Status</h3>
-                  <div className="text-sm space-y-1">
-                    <p className="flex justify-between">
-                      <span>Imagens:</span>
-                      <span className="font-medium">{images.length}</span>
-                    </p>
-                    <p className="flex justify-between">
-                      <span>Tempo:</span>
-                      <span className="font-medium">{transitionTime}s</span>
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </Card>
-
-            {images.length === 0 && (
-              <Card className="p-6 bg-accent/10 border-accent/20">
-                <h3 className="font-medium text-accent-foreground mb-2">
-                  Primeiros Passos
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  1. Faça upload das suas imagens<br />
-                  2. Configure o tempo de transição<br />
-                  3. Clique em "Abrir Slideshow"<br />
-                  4. Acesse o link na TV
-                </p>
+          {/* Sticky Sidebar */}
+          <div className="hidden lg:block">
+            <div className="sticky top-20 space-y-4">
+              {/* Preview */}
+              <Card className="p-4">
+                <h3 className="text-sm font-medium mb-3">Preview</h3>
+                <SlideshowPreview images={images} />
               </Card>
-            )}
+
+              {/* Quick Stats */}
+              <Card className="p-4">
+                <h3 className="text-sm font-medium mb-3">Resumo</h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Mídias</span>
+                    <span className="font-medium">{images.length}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Músicas</span>
+                    <span className="font-medium">{audios.length}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Locuções</span>
+                    <span className="font-medium">{announcements.length}</span>
+                  </div>
+                  <div className="flex justify-between pt-2 border-t">
+                    <span className="text-muted-foreground">Intervalo</span>
+                    <span className="font-medium">{transitionTime}s</span>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Quick Action */}
+              <Button
+                onClick={openSlideshow}
+                className="w-full gap-2"
+                disabled={images.length === 0}
+              >
+                <ExternalLink className="h-4 w-4" />
+                Abrir na TV
+              </Button>
+            </div>
           </div>
         </div>
       </main>
