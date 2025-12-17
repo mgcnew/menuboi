@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Upload, X, Image as ImageIcon } from "lucide-react";
+import { Upload, X, Image as ImageIcon, Loader2 } from "lucide-react";
 import { MenuItem } from "@/pages/Dashboard";
 import { DEFAULT_DISPLAY_TIME, DEFAULT_TRANSITION_TYPE } from "@/types/slideshow";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,7 +12,6 @@ interface ImageUploadProps {
 
 export const ImageUpload = ({ onImagesUploaded }: ImageUploadProps) => {
   const [isDragOver, setIsDragOver] = useState(false);
-  const [previews, setPreviews] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const { toast } = useToast();
 
@@ -36,7 +35,6 @@ export const ImageUpload = ({ onImagesUploaded }: ImageUploadProps) => {
 
     setIsUploading(true);
     const newImages: MenuItem[] = [];
-    const newPreviews: string[] = [];
 
     try {
       for (let i = 0; i < validFiles.length; i++) {
@@ -44,7 +42,6 @@ export const ImageUpload = ({ onImagesUploaded }: ImageUploadProps) => {
         const fileExt = file.name.split('.').pop();
         const fileName = `${Date.now()}_${i}.${fileExt}`;
         
-        // Upload to Supabase Storage
         const { data, error } = await supabase.storage
           .from('menu-images')
           .upload(fileName, file);
@@ -59,24 +56,15 @@ export const ImageUpload = ({ onImagesUploaded }: ImageUploadProps) => {
           continue;
         }
 
-        // Get the public URL
         const { data: { publicUrl } } = supabase.storage
           .from('menu-images')
           .getPublicUrl(fileName);
-
-        // Create preview
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const previewUrl = e.target?.result as string;
-          newPreviews.push(previewUrl);
-        };
-        reader.readAsDataURL(file);
 
         const isVideo = file.type.startsWith('video/');
         const image: MenuItem = {
           id: crypto.randomUUID(),
           url: publicUrl,
-          name: file.name.replace(/\.[^/.]+$/, ""), // Remove extension
+          name: file.name.replace(/\.[^/.]+$/, ""),
           order: Date.now() + i,
           uploadedAt: new Date(),
           displayTime: DEFAULT_DISPLAY_TIME,
@@ -92,7 +80,6 @@ export const ImageUpload = ({ onImagesUploaded }: ImageUploadProps) => {
 
       if (newImages.length > 0) {
         onImagesUploaded(newImages);
-        setPreviews([]);
         const imageCount = newImages.filter(img => img.itemType === 'image').length;
         const videoCount = newImages.filter(img => img.itemType === 'video').length;
         const description = [
@@ -142,95 +129,52 @@ export const ImageUpload = ({ onImagesUploaded }: ImageUploadProps) => {
     if (files && files.length > 0) {
       processFiles(files);
     }
-    // Reset input
     e.target.value = '';
   }, [processFiles]);
 
-  const clearPreviews = () => {
-    setPreviews([]);
-  };
-
   return (
-    <div className="space-y-4">
-      {/* Upload Area */}
-      <div
-        className={`upload-area ${isDragOver ? 'dragover' : ''}`}
-        onDrop={handleDrop}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-      >
-        <div className="flex flex-col items-center space-y-4">
-          <div className={`p-4 rounded-full ${isDragOver ? 'bg-primary/10' : 'bg-muted'}`}>
-            {isUploading ? (
-              <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full" />
-            ) : (
-              <Upload className={`h-8 w-8 ${isDragOver ? 'text-primary' : 'text-muted-foreground'}`} />
-            )}
-          </div>
-          
-          <div className="text-center">
-            <h3 className="text-lg font-medium mb-2">
-              {isUploading ? 'Processando arquivos...' : 'Arraste suas imagens ou vídeos aqui'}
-            </h3>
-            <p className="text-muted-foreground mb-4">
-              ou clique para selecionar arquivos
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Imagens: JPG, PNG, WebP • Vídeos: MP4, WebM, OGG • Máximo: 10MB
-            </p>
-          </div>
-
-          <Button
-            variant="outline"
-            onClick={() => document.getElementById('file-input')?.click()}
-            disabled={isUploading}
-            className="bg-background hover:bg-muted"
-          >
-            <ImageIcon className="mr-2 h-4 w-4" />
-            Selecionar Arquivos
-          </Button>
-
-          <input
-            id="file-input"
-            type="file"
-            multiple
-            accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/ogg"
-            onChange={handleFileSelect}
-            className="hidden"
-          />
-        </div>
+    <div
+      className={`
+        relative border-2 border-dashed rounded-lg p-6 text-center transition-all cursor-pointer
+        ${isDragOver 
+          ? 'border-primary bg-primary/5' 
+          : 'border-muted-foreground/25 hover:border-muted-foreground/50 hover:bg-muted/50'
+        }
+      `}
+      onDrop={handleDrop}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onClick={() => !isUploading && document.getElementById('file-input')?.click()}
+    >
+      <div className="flex flex-col items-center gap-2">
+        {isUploading ? (
+          <>
+            <Loader2 className="h-8 w-8 text-primary animate-spin" />
+            <p className="text-sm font-medium">Enviando...</p>
+          </>
+        ) : (
+          <>
+            <Upload className={`h-8 w-8 ${isDragOver ? 'text-primary' : 'text-muted-foreground'}`} />
+            <div>
+              <p className="text-sm font-medium">
+                Arraste arquivos aqui ou clique para selecionar
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                JPG, PNG, WebP, MP4, WebM
+              </p>
+            </div>
+          </>
+        )}
       </div>
 
-      {/* Preview Area */}
-      {previews.length > 0 && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h4 className="font-medium">Pré-visualização ({previews.length})</h4>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={clearPreviews}
-            >
-              <X className="mr-1 h-4 w-4" />
-              Limpar
-            </Button>
-          </div>
-          
-          <div className="image-grid">
-            {previews.map((preview, index) => (
-              <div key={index} className="relative group">
-                <div className="aspect-video bg-muted rounded-lg overflow-hidden">
-                  <img
-                    src={preview}
-                    alt={`Preview ${index + 1}`}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      <input
+        id="file-input"
+        type="file"
+        multiple
+        accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/ogg"
+        onChange={handleFileSelect}
+        className="hidden"
+      />
     </div>
   );
 };
