@@ -49,7 +49,8 @@ export const AudioPlayer = ({ tracks, announcements }: AudioPlayerProps) => {
     return publicUrl;
   }, []);
 
-  // Create interleaved playlist
+  // Create interleaved playlist: Announcement → Music → Announcement → Music...
+  // Cycles through the shorter list while playing through the longer one
   const createPlaylist = useCallback((): PlaylistItem[] => {
     const trackItems: PlaylistItem[] = tracks.map((t) => ({
       id: t.id,
@@ -69,15 +70,23 @@ export const AudioPlayer = ({ tracks, announcements }: AudioPlayerProps) => {
     if (trackItems.length === 0) return shuffle(announcementItems);
     if (announcementItems.length === 0) return shuffle(trackItems);
 
-    // Interleave: track, announcement, track, announcement...
+    // Shuffle both lists
     const shuffledTracks = shuffle(trackItems);
     const shuffledAnnouncements = shuffle(announcementItems);
+    
+    // Determine which list is longer
     const result: PlaylistItem[] = [];
-    const max = Math.max(shuffledTracks.length, shuffledAnnouncements.length);
+    const maxLength = Math.max(shuffledTracks.length, shuffledAnnouncements.length);
 
-    for (let i = 0; i < max; i++) {
-      if (i < shuffledTracks.length) result.push(shuffledTracks[i]);
-      if (i < shuffledAnnouncements.length) result.push(shuffledAnnouncements[i]);
+    // Interleave: announcement first, then music, cycling the shorter list
+    for (let i = 0; i < maxLength; i++) {
+      // Get announcement (cycle if needed)
+      const announcementIndex = i % shuffledAnnouncements.length;
+      result.push(shuffledAnnouncements[announcementIndex]);
+      
+      // Get track (cycle if needed)
+      const trackIndex = i % shuffledTracks.length;
+      result.push(shuffledTracks[trackIndex]);
     }
 
     return result;
