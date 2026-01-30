@@ -12,6 +12,7 @@ import { AudioGrid } from "@/components/AudioGrid";
 import { AnnouncementUpload } from "@/components/AnnouncementUpload";
 import { AnnouncementGrid } from "@/components/AnnouncementGrid";
 import { PlaylistManager } from "@/components/PlaylistManager";
+import { SlideshowSettingsCard } from "@/components/SlideshowSettingsCard";
 import { Monitor, Play, Image, Music, Settings, ExternalLink } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { TransitionType, DEFAULT_DISPLAY_TIME, DEFAULT_TRANSITION_TYPE, AudioTrack, Announcement } from "@/types/slideshow";
@@ -732,6 +733,10 @@ const Dashboard = () => {
 
               {/* Settings Tab */}
               <TabsContent value="settings" className="space-y-4 mt-4">
+                {/* Slideshow Appearance Settings */}
+                <SlideshowSettingsCard />
+
+                {/* Other Settings */}
                 <Card className="p-4">
                   <div className="space-y-4">
                     <div>

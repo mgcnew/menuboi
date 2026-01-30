@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useReducer, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { MenuItem } from "./Dashboard";
-import { AudioTrack, Announcement } from "@/types/slideshow";
+import { AudioTrack, Announcement, SlideshowSettings, SlideshowTheme, WidgetPosition, DEFAULT_SLIDESHOW_SETTINGS } from "@/types/slideshow";
 import { supabase } from "@/integrations/supabase/client";
-import { menuItemsTable, audioTracksTable, announcementsTable, playlistTracksTable } from "@/lib/supabase-helpers";
+import { menuItemsTable, audioTracksTable, announcementsTable, playlistTracksTable, slideshowSettingsTable } from "@/lib/supabase-helpers";
 import { AudioPlayer } from "@/components/AudioPlayer";
+import { InfoWidget } from "@/components/InfoWidget";
 import { ChevronLeft, ChevronRight, Pause, Play, RefreshCw, Loader2 } from "lucide-react";
 
 // Minimal image state management
@@ -74,6 +75,29 @@ const preloadImage = (url: string, timeout = 10000): Promise<void> => {
   });
 };
 
+// Default settings for fallback
+const createDefaultSettings = (): SlideshowSettings => ({
+  id: "default",
+  ...DEFAULT_SLIDESHOW_SETTINGS,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+});
+
+// Get theme classes for the slideshow container
+const getThemeClasses = (theme: SlideshowTheme): string => {
+  switch (theme) {
+    case "light":
+      return "bg-white";
+    case "minimal":
+      return "bg-black";
+    case "branded":
+      return "bg-black";
+    case "dark":
+    default:
+      return "bg-black";
+  }
+};
+
 const Slideshow = () => {
   const [searchParams] = useSearchParams();
   const playlistId = searchParams.get("playlist");
@@ -81,6 +105,7 @@ const Slideshow = () => {
   const [images, setImages] = useState<MenuItem[]>([]);
   const [audios, setAudios] = useState<AudioTrack[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [settings, setSettings] = useState<SlideshowSettings>(createDefaultSettings());
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
   const [showControls, setShowControls] = useState(false);
@@ -122,6 +147,44 @@ const Slideshow = () => {
     
     return () => clearTimeout(forceShowTimeoutRef.current);
   }, [currentIndex, images, imageState.loaded]);
+
+  // Load settings
+  const loadSettings = useCallback(async () => {
+    try {
+      const { data, error } = await slideshowSettingsTable()
+        .select("*")
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        console.error("[Slideshow] Settings load error:", error);
+        return;
+      }
+
+      if (data) {
+        const row = data as any;
+        setSettings({
+          id: row.id,
+          theme: row.theme as SlideshowTheme,
+          showClock: row.show_clock,
+          showDate: row.show_date,
+          showWeather: row.show_weather,
+          weatherLocation: row.weather_location || "São Paulo",
+          weatherLat: parseFloat(row.weather_lat) || -23.5505,
+          weatherLon: parseFloat(row.weather_lon) || -46.6333,
+          showLogo: row.show_logo,
+          logoUrl: row.logo_url,
+          logoPosition: (row.logo_position || "top-left") as WidgetPosition,
+          customMessage: row.custom_message,
+          customMessagePosition: (row.custom_message_position || "bottom-center") as WidgetPosition,
+          createdAt: new Date(row.created_at),
+          updatedAt: new Date(row.updated_at),
+        });
+      }
+    } catch (error) {
+      console.error("[Slideshow] Settings load error:", error);
+    }
+  }, []);
 
   // Load data
   const loadData = useCallback(async () => {
@@ -214,10 +277,13 @@ const Slideshow = () => {
           }))
         );
       }
+
+      // Load settings
+      await loadSettings();
     } catch (e) {
       console.error("[Slideshow] Load error:", e);
     }
-  }, [playlistId]);
+  }, [playlistId, loadSettings]);
 
   useEffect(() => {
     loadData();
@@ -277,13 +343,17 @@ const Slideshow = () => {
         clearTimeout(reloadDebounceRef.current);
         reloadDebounceRef.current = setTimeout(loadData, 2000);
       })
+      .on("postgres_changes", { event: "*", schema: "public", table: "slideshow_settings" }, () => {
+        clearTimeout(reloadDebounceRef.current);
+        reloadDebounceRef.current = setTimeout(loadSettings, 500);
+      })
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
       clearTimeout(reloadDebounceRef.current);
     };
-  }, [loadData]);
+  }, [loadData, loadSettings]);
 
   // Mouse controls
   useEffect(() => {
@@ -336,8 +406,8 @@ const Slideshow = () => {
   // Empty state
   if (images.length === 0) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-center text-white">
+      <div className={`min-h-screen ${getThemeClasses(settings.theme)} flex items-center justify-center`}>
+        <div className={`text-center ${settings.theme === "light" ? "text-gray-900" : "text-white"}`}>
           <div className="text-6xl mb-4">📱</div>
           <h1 className="text-4xl font-bold mb-4">Menu Board Digital</h1>
           <p className="text-xl opacity-75">Nenhuma imagem encontrada.</p>
@@ -355,14 +425,17 @@ const Slideshow = () => {
   const shouldShowImage = isLoaded || forceShow || (!isLoading && !hasFailed);
 
   return (
-    <div className="min-h-screen bg-black relative overflow-hidden">
+    <div className={`min-h-screen ${getThemeClasses(settings.theme)} relative overflow-hidden`}>
       {/* Audio Player */}
       <AudioPlayer tracks={audios} announcements={announcements} />
+
+      {/* Info Widget - renders clock, date, weather, logo, custom message */}
+      <InfoWidget settings={settings} />
 
       {/* Current Image/Video */}
       <div className="absolute inset-0">
         {hasFailed && !forceShow ? (
-          <div className="w-full h-full flex items-center justify-center text-white">
+          <div className={`w-full h-full flex items-center justify-center ${settings.theme === "light" ? "text-gray-900" : "text-white"}`}>
             <div className="text-center">
               <div className="text-4xl mb-2">⚠️</div>
               <p>Erro ao carregar</p>
@@ -384,7 +457,7 @@ const Slideshow = () => {
             {/* Loading indicator - show while loading and not forced */}
             {isLoading && !forceShow && (
               <div className="absolute inset-0 flex items-center justify-center z-10">
-                <Loader2 className="h-16 w-16 text-white animate-spin" />
+                <Loader2 className={`h-16 w-16 ${settings.theme === "light" ? "text-gray-900" : "text-white"} animate-spin`} />
               </div>
             )}
             

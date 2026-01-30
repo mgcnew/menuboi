@@ -176,6 +176,60 @@ export type Database = {
         }
         Relationships: []
       }
+      slideshow_settings: {
+        Row: {
+          created_at: string
+          custom_message: string | null
+          custom_message_position: string
+          id: string
+          logo_position: string
+          logo_url: string | null
+          show_clock: boolean
+          show_date: boolean
+          show_logo: boolean
+          show_weather: boolean
+          theme: string
+          updated_at: string
+          weather_lat: number | null
+          weather_location: string | null
+          weather_lon: number | null
+        }
+        Insert: {
+          created_at?: string
+          custom_message?: string | null
+          custom_message_position?: string
+          id?: string
+          logo_position?: string
+          logo_url?: string | null
+          show_clock?: boolean
+          show_date?: boolean
+          show_logo?: boolean
+          show_weather?: boolean
+          theme?: string
+          updated_at?: string
+          weather_lat?: number | null
+          weather_location?: string | null
+          weather_lon?: number | null
+        }
+        Update: {
+          created_at?: string
+          custom_message?: string | null
+          custom_message_position?: string
+          id?: string
+          logo_position?: string
+          logo_url?: string | null
+          show_clock?: boolean
+          show_date?: boolean
+          show_logo?: boolean
+          show_weather?: boolean
+          theme?: string
+          updated_at?: string
+          weather_lat?: number | null
+          weather_location?: string | null
+          weather_lon?: number | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

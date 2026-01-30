@@ -57,3 +57,55 @@ export interface PlaylistTrack {
   order: number;
   track?: AudioTrack;
 }
+
+// Slideshow Settings Types
+export type SlideshowTheme = 'dark' | 'light' | 'minimal' | 'branded';
+export type WidgetPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'bottom-center';
+
+export const THEME_OPTIONS: { value: SlideshowTheme; label: string; description: string }[] = [
+  { value: 'dark', label: 'Escuro', description: 'Fundo preto, ideal para ambientes escuros' },
+  { value: 'light', label: 'Claro', description: 'Fundo branco, ideal para ambientes claros' },
+  { value: 'minimal', label: 'Minimal', description: 'Sem sobreposições, apenas imagens' },
+  { value: 'branded', label: 'Branded', description: 'Exibe logo da empresa' },
+];
+
+export const POSITION_OPTIONS: { value: WidgetPosition; label: string }[] = [
+  { value: 'top-left', label: 'Superior Esquerda' },
+  { value: 'top-right', label: 'Superior Direita' },
+  { value: 'bottom-left', label: 'Inferior Esquerda' },
+  { value: 'bottom-right', label: 'Inferior Direita' },
+  { value: 'bottom-center', label: 'Inferior Centro' },
+];
+
+export interface SlideshowSettings {
+  id: string;
+  theme: SlideshowTheme;
+  showClock: boolean;
+  showDate: boolean;
+  showWeather: boolean;
+  weatherLocation: string;
+  weatherLat: number;
+  weatherLon: number;
+  showLogo: boolean;
+  logoUrl: string | null;
+  logoPosition: WidgetPosition;
+  customMessage: string | null;
+  customMessagePosition: WidgetPosition;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export const DEFAULT_SLIDESHOW_SETTINGS: Omit<SlideshowSettings, 'id' | 'createdAt' | 'updatedAt'> = {
+  theme: 'dark',
+  showClock: true,
+  showDate: true,
+  showWeather: false,
+  weatherLocation: 'São Paulo',
+  weatherLat: -23.5505,
+  weatherLon: -46.6333,
+  showLogo: false,
+  logoUrl: null,
+  logoPosition: 'top-left',
+  customMessage: null,
+  customMessagePosition: 'bottom-center',
+};

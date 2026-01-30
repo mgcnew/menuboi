@@ -44,10 +44,17 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 217 91% 60%;
 
-    /* Slideshow Theme - Dark Professional */
-    --slideshow-bg: 0 0% 8%;
-    --slideshow-text: 0 0% 95%;
+    /* Slideshow Themes */
+    --slideshow-bg-dark: 0 0% 0%;
+    --slideshow-bg-light: 0 0% 100%;
+    --slideshow-text-dark: 0 0% 100%;
+    --slideshow-text-light: 0 0% 10%;
     --slideshow-overlay: 0 0% 0%;
+
+    /* Widget Styles */
+    --widget-bg-dark: 0 0% 0% / 0.5;
+    --widget-bg-light: 0 0% 100% / 0.8;
+    --widget-blur: 12px;
 
     /* Gradients */
     --gradient-primary: linear-gradient(135deg, hsl(217 91% 60%), hsl(217 91% 55%));
