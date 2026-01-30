@@ -22,3 +22,7 @@ export const playlistsTable = () => {
 export const playlistTracksTable = () => {
   return supabase.from('playlist_tracks');
 };
+
+export const slideshowSettingsTable = () => {
+  return supabase.from('slideshow_settings' as any);
+};
