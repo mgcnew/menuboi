@@ -18,6 +18,7 @@ import {
 import { MenuItem } from "./Dashboard";
 import { supabase } from "@/integrations/supabase/client";
 import { menuItemsTable } from "@/lib/supabase-helpers";
+import { QRCodeDisplay } from "@/components/QRCodeDisplay";
 
 const TVPreparation = () => {
   const [images, setImages] = useState<MenuItem[]>([]);
@@ -243,6 +244,12 @@ const TVPreparation = () => {
               </div>
             </Card>
 
+            {/* QR Code */}
+            <QRCodeDisplay 
+              title="QR Code para TV"
+              description="Escaneie com o celular para abrir na TV"
+            />
+
             {/* Share Links */}
             <Card className="bg-card/10 backdrop-blur-sm border-primary/20 p-6">
               <h2 className="text-lg font-semibold text-slideshow-text mb-4 flex items-center">
@@ -251,13 +258,6 @@ const TVPreparation = () => {
               </h2>
               
               <div className="space-y-3">
-                <div>
-                  <p className="text-xs text-slideshow-text/60 mb-1">TV/Slideshow direto:</p>
-                  <code className="block text-xs font-mono bg-slideshow-overlay/30 p-2 rounded text-primary break-all">
-                    {window.location.origin}/tv
-                  </code>
-                </div>
-                
                 <div>
                   <p className="text-xs text-slideshow-text/60 mb-1">Painel admin:</p>
                   <code className="block text-xs font-mono bg-slideshow-overlay/30 p-2 rounded text-accent break-all">
