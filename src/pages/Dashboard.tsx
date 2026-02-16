@@ -19,6 +19,7 @@ import { TransitionType, DEFAULT_DISPLAY_TIME, DEFAULT_TRANSITION_TYPE, AudioTra
 import { supabase } from "@/integrations/supabase/client";
 import { menuItemsTable, audioTracksTable, announcementsTable } from "@/lib/supabase-helpers";
 import { Badge } from "@/components/ui/badge";
+import { QRCodeDisplay } from "@/components/QRCodeDisplay";
 
 export interface MenuItem {
   id: string;
@@ -761,25 +762,7 @@ const Dashboard = () => {
                     </div>
 
                     <div className="pt-4 border-t">
-                      <Label className="text-sm">Link do Slideshow</Label>
-                      <div className="flex items-center gap-2 mt-2">
-                        <code className="flex-1 p-2 bg-muted rounded text-xs font-mono truncate">
-                          {window.location.origin}/slideshow
-                        </code>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            navigator.clipboard.writeText(`${window.location.origin}/slideshow`);
-                            toast({ title: "Link copiado!" });
-                          }}
-                        >
-                          Copiar
-                        </Button>
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Acesse este link na TV
-                      </p>
+                      <QRCodeDisplay compact title="Link para TV" />
                     </div>
                   </div>
                 </Card>
