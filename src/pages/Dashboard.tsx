@@ -33,6 +33,7 @@ export interface MenuItem {
   videoAutoplay?: boolean;
   videoMuted?: boolean;
   videoLoop?: boolean;
+  displayDays?: string[] | null;
 }
 
 export type MenuImage = MenuItem;
@@ -80,7 +81,8 @@ const Dashboard = () => {
             itemType: img.item_type || 'image',
             videoAutoplay: img.video_autoplay,
             videoMuted: img.video_muted,
-            videoLoop: img.video_loop
+            videoLoop: img.video_loop,
+            displayDays: (img as any).display_days || null,
           };
         });
         setImages(formattedImages);
@@ -242,7 +244,8 @@ const Dashboard = () => {
           transition_type: updatedImage.transitionType,
           video_autoplay: updatedImage.videoAutoplay,
           video_muted: updatedImage.videoMuted,
-          video_loop: updatedImage.videoLoop
+          video_loop: updatedImage.videoLoop,
+          display_days: updatedImage.displayDays,
         } as any)
         .eq('id', updatedImage.id);
 

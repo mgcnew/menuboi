@@ -26,6 +26,23 @@ export const TRANSITION_OPTIONS: { value: TransitionType; label: string }[] = [
 export const DEFAULT_DISPLAY_TIME = 10;
 export const DEFAULT_TRANSITION_TYPE: TransitionType = 'fade';
 
+export type DayOfWeek = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun';
+
+export const DAY_OPTIONS: { value: DayOfWeek; label: string; short: string }[] = [
+  { value: 'mon', label: 'Segunda', short: 'Seg' },
+  { value: 'tue', label: 'Terça', short: 'Ter' },
+  { value: 'wed', label: 'Quarta', short: 'Qua' },
+  { value: 'thu', label: 'Quinta', short: 'Qui' },
+  { value: 'fri', label: 'Sexta', short: 'Sex' },
+  { value: 'sat', label: 'Sábado', short: 'Sáb' },
+  { value: 'sun', label: 'Domingo', short: 'Dom' },
+];
+
+export const getCurrentDayOfWeek = (): DayOfWeek => {
+  const days: DayOfWeek[] = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+  return days[new Date().getDay()];
+};
+
 export interface AudioTrack {
   id: string;
   name: string;

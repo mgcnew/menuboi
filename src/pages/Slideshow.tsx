@@ -1,15 +1,15 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { MenuItem } from "./Dashboard";
-import { AudioTrack, Announcement, SlideshowSettings, SlideshowTheme, WidgetPosition, DEFAULT_SLIDESHOW_SETTINGS } from "@/types/slideshow";
+import { AudioTrack, Announcement, SlideshowSettings, SlideshowTheme, WidgetPosition, DEFAULT_SLIDESHOW_SETTINGS, getCurrentDayOfWeek } from "@/types/slideshow";
 import { supabase } from "@/integrations/supabase/client";
 import { menuItemsTable, audioTracksTable, announcementsTable, playlistTracksTable, slideshowSettingsTable } from "@/lib/supabase-helpers";
 import { AudioPlayer } from "@/components/AudioPlayer";
 import { InfoWidget } from "@/components/InfoWidget";
-import { ChevronLeft, ChevronRight, Pause, Play, RefreshCw, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Pause, Play, RefreshCw } from "lucide-react";
 
 // Preload image utility with timeout
-const preloadImage = (url: string, timeout = 8000): Promise<void> => {
+const preloadImage = (url: string, timeout = 10000): Promise<void> => {
   return new Promise((resolve, reject) => {
     const img = new Image();
     const timer = setTimeout(() => {
@@ -41,6 +41,7 @@ const Slideshow = () => {
   const [searchParams] = useSearchParams();
   const playlistId = searchParams.get("playlist");
 
+  const [allImages, setAllImages] = useState<MenuItem[]>([]);
   const [images, setImages] = useState<MenuItem[]>([]);
   const [audios, setAudios] = useState<AudioTrack[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -48,44 +49,31 @@ const Slideshow = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
   const [showControls, setShowControls] = useState(false);
-  const [currentImageReady, setCurrentImageReady] = useState(false);
 
-  // Use refs for image cache to avoid re-render cascades
+  // Dual-buffer state: which buffer (0 or 1) is active
+  const [activeBuffer, setActiveBuffer] = useState(0);
+  const [bufferReady, setBufReady] = useState([false, false]);
+
+  // Persistent image cache ref - never cleared between reloads
   const imageCache = useRef(new Set<string>());
   const failedImages = useRef(new Set<string>());
-  const preloadingImages = useRef(new Set<string>());
 
   const indexRef = useRef(currentIndex);
   const controlsTimeoutRef = useRef<NodeJS.Timeout>();
   const reloadDebounceRef = useRef<NodeJS.Timeout>();
-  const forceShowTimeoutRef = useRef<NodeJS.Timeout>();
 
   useEffect(() => { indexRef.current = currentIndex; }, [currentIndex]);
 
-  // When currentIndex changes, check if image is ready
+  // Filter images by current day of week
   useEffect(() => {
-    if (images.length === 0) return;
-    const current = images[currentIndex];
-    if (!current || current.itemType === "video") {
-      setCurrentImageReady(true);
-      return;
-    }
-
-    // Already cached? Show immediately
-    if (imageCache.current.has(current.url)) {
-      setCurrentImageReady(true);
-      return;
-    }
-
-    // Not cached yet - show loading briefly, then force show after 3s
-    setCurrentImageReady(false);
-    
-    forceShowTimeoutRef.current = setTimeout(() => {
-      setCurrentImageReady(true);
-    }, 3000);
-
-    return () => clearTimeout(forceShowTimeoutRef.current);
-  }, [currentIndex, images]);
+    const today = getCurrentDayOfWeek();
+    const filtered = allImages.filter(img =>
+      img.displayDays === null || img.displayDays === undefined || img.displayDays.length === 0 || img.displayDays.includes(today)
+    );
+    setImages(filtered);
+    // Reset index if it's out of bounds
+    setCurrentIndex(prev => filtered.length > 0 ? prev % filtered.length : 0);
+  }, [allImages]);
 
   // Load settings
   const loadSettings = useCallback(async () => {
@@ -132,10 +120,10 @@ const Slideshow = () => {
             videoAutoplay: img.video_autoplay !== false,
             videoMuted: img.video_muted !== false,
             videoLoop: img.video_loop || false,
+            displayDays: img.display_days || null,
           };
         });
-        setImages(formatted);
-        // Don't clear cache - keep preloaded images
+        setAllImages(formatted);
       }
 
       // Load audios
@@ -178,48 +166,56 @@ const Slideshow = () => {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // Preload next 2 images in background - NO state dependencies on image cache
+  // Preload next 4 images aggressively in background
   useEffect(() => {
     if (images.length === 0) return;
-
     let cancelled = false;
 
-    const preloadNext = async () => {
-      for (let i = 0; i < Math.min(2, images.length); i++) {
+    const preloadAhead = async () => {
+      for (let i = 0; i < Math.min(4, images.length); i++) {
         if (cancelled) return;
         const idx = (currentIndex + i) % images.length;
         const img = images[idx];
         if (img.itemType === "video") continue;
-        if (imageCache.current.has(img.url) || failedImages.current.has(img.url) || preloadingImages.current.has(img.url)) continue;
+        if (imageCache.current.has(img.url) || failedImages.current.has(img.url)) continue;
 
-        preloadingImages.current.add(img.url);
         try {
-          await preloadImage(img.url, 8000);
+          await preloadImage(img.url, 10000);
           imageCache.current.add(img.url);
-          // Only trigger re-render if this is the current image
-          if (!cancelled && idx === indexRef.current) {
-            setCurrentImageReady(true);
-          }
         } catch {
           failedImages.current.add(img.url);
-        } finally {
-          preloadingImages.current.delete(img.url);
         }
       }
     };
 
-    // Delay preloading slightly to prioritize current image rendering
-    const timer = setTimeout(preloadNext, 200);
+    const timer = setTimeout(preloadAhead, 100);
     return () => { cancelled = true; clearTimeout(timer); };
   }, [images, currentIndex]);
 
-  // Auto-advance
+  // When currentIndex changes, set up dual buffers
+  useEffect(() => {
+    if (images.length === 0) return;
+    const current = images[currentIndex];
+    
+    // Current buffer is always "ready" - show immediately even if loading
+    if (current.itemType === "video" || imageCache.current.has(current.url)) {
+      setBufReady(prev => {
+        const next = [...prev];
+        next[activeBuffer] = true;
+        return next;
+      });
+    }
+  }, [currentIndex, images, activeBuffer]);
+
+  // Auto-advance with dual-buffer swap
   useEffect(() => {
     if (!isPlaying || images.length === 0) return;
     const current = images[indexRef.current];
     const time = (current?.displayTime || 10) * 1000;
     const timer = setTimeout(() => {
-      setCurrentIndex((prev) => (prev + 1) % images.length);
+      // Swap buffers
+      setActiveBuffer(prev => prev === 0 ? 1 : 0);
+      setCurrentIndex(prev => (prev + 1) % images.length);
     }, time);
     return () => clearTimeout(timer);
   }, [isPlaying, images, currentIndex]);
@@ -256,15 +252,21 @@ const Slideshow = () => {
     const handleKey = (e: KeyboardEvent) => {
       switch (e.key) {
         case "ArrowRight": case " ":
-          e.preventDefault(); setCurrentIndex((p) => (p + 1) % images.length); break;
+          e.preventDefault();
+          setActiveBuffer(prev => prev === 0 ? 1 : 0);
+          setCurrentIndex(p => (p + 1) % images.length);
+          break;
         case "ArrowLeft":
-          e.preventDefault(); setCurrentIndex((p) => (p - 1 + images.length) % images.length); break;
+          e.preventDefault();
+          setActiveBuffer(prev => prev === 0 ? 1 : 0);
+          setCurrentIndex(p => (p - 1 + images.length) % images.length);
+          break;
         case "p": case "P":
-          e.preventDefault(); setIsPlaying((p) => !p); break;
+          e.preventDefault(); setIsPlaying(p => !p); break;
         case "r": case "R":
           e.preventDefault(); loadData(); break;
         case "Escape":
-          setShowControls((s) => !s); break;
+          setShowControls(s => !s); break;
       }
     };
     window.addEventListener("keydown", handleKey);
@@ -278,72 +280,85 @@ const Slideshow = () => {
         <div className={`text-center ${settings.theme === "light" ? "text-gray-900" : "text-white"}`}>
           <div className="text-6xl mb-4">📱</div>
           <h1 className="text-4xl font-bold mb-4">Menu Board Digital</h1>
-          <p className="text-xl opacity-75">Nenhuma imagem encontrada.</p>
+          <p className="text-xl opacity-75">Nenhuma imagem para hoje.</p>
+          <p className="text-sm opacity-50 mt-2">Dia atual: {getCurrentDayOfWeek()}</p>
         </div>
       </div>
     );
   }
 
   const current = images[currentIndex];
+  const nextIndex = (currentIndex + 1) % images.length;
+  const nextImage = images[nextIndex];
+
+  const renderMedia = (item: MenuItem, isNext: boolean) => {
+    if (item.itemType === "video") {
+      return (
+        <video
+          key={item.id}
+          src={item.url}
+          className="w-full h-full object-cover"
+          autoPlay muted loop={item.videoLoop} playsInline
+        />
+      );
+    }
+    return (
+      <img
+        key={item.id + (isNext ? '-next' : '')}
+        src={item.url}
+        alt={item.name}
+        className="w-full h-full object-cover"
+        loading="eager"
+        decoding="async"
+        onLoad={() => { imageCache.current.add(item.url); }}
+        onError={() => {
+          failedImages.current.add(item.url);
+          if (!isNext) {
+            setTimeout(() => {
+              if (indexRef.current === currentIndex) {
+                setActiveBuffer(prev => prev === 0 ? 1 : 0);
+                setCurrentIndex(p => (p + 1) % images.length);
+              }
+            }, 2000);
+          }
+        }}
+      />
+    );
+  };
 
   return (
     <div className={`min-h-screen ${getThemeClasses(settings.theme)} relative overflow-hidden`}>
       <AudioPlayer tracks={audios} announcements={announcements} />
       <InfoWidget settings={settings} />
 
-      {/* Current Image/Video */}
+      {/* Dual-buffer rendering: two layers, one visible, one preloading */}
       <div className="absolute inset-0">
-        {current.itemType === "video" ? (
-          <video
-            key={current.id}
-            src={current.url}
-            className="w-full h-full object-cover"
-            autoPlay muted loop={current.videoLoop} playsInline
-          />
-        ) : (
-          <>
-            {!currentImageReady && (
-              <div className="absolute inset-0 flex items-center justify-center z-10">
-                <Loader2 className={`h-16 w-16 ${settings.theme === "light" ? "text-gray-900" : "text-white"} animate-spin`} />
-              </div>
-            )}
-            <img
-              key={current.id}
-              src={current.url}
-              alt={current.name}
-              className={`w-full h-full object-cover transition-opacity duration-300 ${
-                currentImageReady ? "opacity-100" : "opacity-0"
-              }`}
-              loading="eager"
-              decoding="async"
-              onLoad={() => {
-                imageCache.current.add(current.url);
-                setCurrentImageReady(true);
-              }}
-              onError={() => {
-                failedImages.current.add(current.url);
-                // Auto-skip failed images after 2s
-                setTimeout(() => {
-                  if (indexRef.current === currentIndex) {
-                    setCurrentIndex((p) => (p + 1) % images.length);
-                  }
-                }, 2000);
-              }}
-            />
-          </>
-        )}
+        {/* Buffer 0 */}
+        <div
+          className="absolute inset-0 transition-opacity duration-500"
+          style={{ opacity: activeBuffer === 0 ? 1 : 0, zIndex: activeBuffer === 0 ? 2 : 1 }}
+        >
+          {renderMedia(current, false)}
+        </div>
+        {/* Buffer 1 - preloads next image */}
+        <div
+          className="absolute inset-0 transition-opacity duration-500"
+          style={{ opacity: activeBuffer === 1 ? 1 : 0, zIndex: activeBuffer === 1 ? 2 : 1 }}
+        >
+          {activeBuffer === 1 ? renderMedia(current, false) : renderMedia(nextImage, true)}
+        </div>
       </div>
 
       {/* Controls */}
-      <div className={`absolute inset-0 transition-opacity duration-300 ${showControls ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
+      <div className={`absolute inset-0 z-10 transition-opacity duration-300 ${showControls ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
         <button
-          onClick={() => setCurrentIndex((p) => (p - 1 + images.length) % images.length)}
+          onClick={() => { setActiveBuffer(p => p === 0 ? 1 : 0); setCurrentIndex(p => (p - 1 + images.length) % images.length); }}
           className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/50 text-white p-3 rounded-full hover:bg-black/70"
         >
           <ChevronLeft className="h-6 w-6" />
         </button>
         <button
-          onClick={() => setCurrentIndex((p) => (p + 1) % images.length)}
+          onClick={() => { setActiveBuffer(p => p === 0 ? 1 : 0); setCurrentIndex(p => (p + 1) % images.length); }}
           className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/50 text-white p-3 rounded-full hover:bg-black/70"
         >
           <ChevronRight className="h-6 w-6" />
@@ -353,7 +368,7 @@ const Slideshow = () => {
           <button onClick={loadData} className="bg-black/50 text-white p-4 rounded-full hover:bg-black/70">
             <RefreshCw className="h-6 w-6" />
           </button>
-          <button onClick={() => setIsPlaying((p) => !p)} className="bg-black/50 text-white p-4 rounded-full hover:bg-black/70">
+          <button onClick={() => setIsPlaying(p => !p)} className="bg-black/50 text-white p-4 rounded-full hover:bg-black/70">
             {isPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6" />}
           </button>
         </div>
@@ -370,7 +385,7 @@ const Slideshow = () => {
             {images.map((_, i) => (
               <button
                 key={i}
-                onClick={() => setCurrentIndex(i)}
+                onClick={() => { setActiveBuffer(p => p === 0 ? 1 : 0); setCurrentIndex(i); }}
                 className={`w-3 h-3 rounded-full ${i === currentIndex ? "bg-white" : "bg-white/30"}`}
               />
             ))}

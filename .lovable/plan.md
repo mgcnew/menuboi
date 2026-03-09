@@ -1,26 +1,34 @@
 
 
-## Plano: Agendamento por Dia da Semana + Otimização de Carregamento
+## Plano: Melhorar Instalação PWA na TV
 
-### 1. Agendamento por Dia da Semana
+### Problema
+O prompt de instalação aparece na TV, mas o navegador da TV não suporta o evento `beforeinstallprompt` de forma confiável, impossibilitando a instalação automática. O usuário precisa de uma forma prática de ter o app na tela inicial da TV.
 
-**Banco de dados**: Adicionar coluna `display_days` (tipo `text[]`, array de dias) na tabela `menu_items`. Valores possíveis: `['mon','tue','wed','thu','fri','sat','sun']`. Default: todos os dias (null = exibe sempre).
+---
 
-**Dashboard (ImageConfigModal)**: Adicionar seletor de dias da semana com checkboxes no modal de configuração de cada slide. O usuário marca em quais dias aquele slide deve aparecer.
+### Solução: Abordagem em 3 Frentes
 
-**Dashboard (ImageGrid)**: Mostrar badge com os dias selecionados em cada card.
+#### 1. Instruções Passo-a-Passo Específicas por Navegador
 
-**Slideshow**: Filtrar as imagens no carregamento, exibindo apenas as que têm o dia atual marcado (ou `null` para "todos os dias").
+Melhorar o componente `PWAInstallPrompt.tsx` para detectar qual navegador a TV está usando e mostrar instruções específicas:
 
-### 2. Otimização de Carregamento de Imagens
+- **Chrome (Android TV)**: Menu (3 pontos) > "Adicionar à tela inicial"
+- **Puffin TV**: Menu > "Criar atalho"
+- **TV Browser / WebOS / Tizen**: Instruções adaptadas
 
-**Preload mais agressivo**: Aumentar de 2 para 3-4 imagens preloaded à frente.
+Incluir imagens/ícones ilustrativos para cada passo, facilitando para qualquer pessoa seguir.
 
-**Dual-buffer rendering**: Manter duas `<img>` tags sobrepostas — a atual visível e a próxima escondida já carregando. Quando avança, troca a visibilidade instantaneamente sem aguardar load.
+#### 2. QR Code no Painel Admin
 
-**Cache persistente**: Não limpar o cache de imagens entre reloads de dados.
+Adicionar um gerador de QR Code na página do Dashboard e na página `/tv-config` que aponta diretamente para a URL `/tv`. Assim o usuário pode:
+- Abrir a câmera do celular
+- Escanear o QR Code
+- Enviar o link para a TV via Cast ou simplesmente digitar uma vez
 
-**Transição sem bloqueio**: Remover o loader/spinner — sempre mostrar a imagem anterior enquanto a próxima carrega, garantindo que nunca haja tela preta/travada.
+#### 3. Otimizar start_url do PWA
+
+Mudar o `start_url` no manifest para `/tv`, para que quando o app for instalado na TV, ele abra diretamente na interface otimizada para TV (sem precisar navegar manualmente).
 
 ---
 
@@ -28,53 +36,25 @@
 
 | Arquivo | Mudança |
 |---------|---------|
-| `supabase/migrations/` | Adicionar coluna `display_days text[]` em `menu_items` |
-| `src/pages/Dashboard.tsx` | Passar `display_days` no insert/update |
-| `src/components/ImageConfigModal.tsx` | Adicionar seletor de dias da semana |
-| `src/components/ImageGrid.tsx` | Badge dos dias no card |
-| `src/pages/Slideshow.tsx` | Filtrar por dia atual + dual-buffer rendering |
-| `src/types/slideshow.ts` | Constantes de dias |
+| `src/components/PWAInstallPrompt.tsx` | Instruções detalhadas por navegador com visual melhorado |
+| `src/pages/TVPreparation.tsx` | Adicionar QR Code com URL da TV |
+| `src/pages/Dashboard.tsx` | Adicionar QR Code na aba de configurações |
+| `vite.config.ts` | Alterar `start_url` para `/tv` |
 
-### Migração SQL
+### Detalhes Técnicos
 
-```sql
-ALTER TABLE public.menu_items 
-ADD COLUMN display_days text[] DEFAULT NULL;
--- NULL = exibe todos os dias
-```
+**QR Code**: Usar uma biblioteca leve de geração de QR Code no lado do cliente (ex: `qrcode.react`) ou gerar via API gratuita (`https://api.qrserver.com/v1/create-qr-code/`).
 
-### Interface do Seletor de Dias
+**Detecção de navegador na TV**: Expandir a função `isAndroidTV()` para identificar o navegador específico (Chrome, Puffin, WebView) e ajustar as instruções.
 
-```text
-┌─────────────────────────────────┐
-│  Dias de Exibição               │
-│  ☑ Seg  ☑ Ter  ☑ Qua  ☑ Qui   │
-│  ☑ Sex  ☐ Sáb  ☐ Dom          │
-│  ☐ Todos os dias               │
-└─────────────────────────────────┘
-```
+**Manifest otimizado**: Adicionar `categories: ["entertainment"]` e `display_override: ["standalone", "fullscreen"]` para melhor compatibilidade com TVs Android.
 
-### Lógica de Filtragem no Slideshow
+---
 
-```text
-dia_atual = getDayOfWeek() → 'mon'|'tue'|...
-imagens_filtradas = imagens.filter(img => 
-  img.displayDays === null || img.displayDays.includes(dia_atual)
-)
-```
+### Resultado Esperado
 
-### Dual-Buffer no Slideshow
-
-```text
-┌─────────────────────────────────┐
-│  <img current> (opacity: 1)     │  ← visível
-│  <img next>    (opacity: 0)     │  ← carregando em background
-│                                 │
-│  Ao avançar:                    │
-│  - next → opacity: 1 (instant)  │
-│  - current vira a próxima       │
-└─────────────────────────────────┘
-```
-
-Isso elimina qualquer flash/travada pois a próxima imagem já está carregada quando a transição acontece.
+- Instruções claras e visuais para instalar na TV, adaptadas ao navegador usado
+- QR Code disponível no painel admin para facilitar o acesso à URL da TV
+- Quando instalado, o app abre direto na tela da TV sem precisar digitar URL
+- Qualquer pessoa consegue seguir os passos sem conhecimento técnico
 

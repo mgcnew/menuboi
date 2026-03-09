@@ -1,0 +1,1 @@
+ALTER TABLE public.menu_items ADD COLUMN display_days text[] DEFAULT NULL;

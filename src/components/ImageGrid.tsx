@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { MenuItem } from "@/pages/Dashboard";
 import { Button } from "./ui/button";
+import { Badge } from "./ui/badge";
 import { Trash2, Eye, GripVertical, Settings, Play } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { ImageConfigModal } from "./ImageConfigModal";
+import { DAY_OPTIONS } from "@/types/slideshow";
 
 interface ImageGridProps {
   images: MenuItem[];
@@ -87,6 +89,20 @@ export const ImageGrid = ({ images, onImageDelete, onImageReorder, onImageUpdate
             {image.itemType === 'video' && (
               <div className="absolute top-1 right-1 bg-black/70 text-white p-1 rounded z-10">
                 <Play className="h-3 w-3" />
+              </div>
+            )}
+
+            {/* Day badges */}
+            {image.displayDays && image.displayDays.length < 7 && (
+              <div className="absolute bottom-1 left-1 z-10 flex gap-0.5 flex-wrap max-w-[calc(100%-8px)]">
+                {image.displayDays.map(day => {
+                  const dayOption = DAY_OPTIONS.find(d => d.value === day);
+                  return (
+                    <span key={day} className="bg-primary/80 text-primary-foreground text-[9px] px-1 py-0.5 rounded font-medium">
+                      {dayOption?.short || day}
+                    </span>
+                  );
+                })}
               </div>
             )}
 
