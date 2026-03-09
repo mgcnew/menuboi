@@ -33,6 +33,7 @@ export interface MenuItem {
   videoAutoplay?: boolean;
   videoMuted?: boolean;
   videoLoop?: boolean;
+  displayDays?: string[] | null;
 }
 
 export type MenuImage = MenuItem;
