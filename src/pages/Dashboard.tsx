@@ -244,7 +244,8 @@ const Dashboard = () => {
           transition_type: updatedImage.transitionType,
           video_autoplay: updatedImage.videoAutoplay,
           video_muted: updatedImage.videoMuted,
-          video_loop: updatedImage.videoLoop
+          video_loop: updatedImage.videoLoop,
+          display_days: updatedImage.displayDays,
         } as any)
         .eq('id', updatedImage.id);
 

@@ -92,6 +92,20 @@ export const ImageGrid = ({ images, onImageDelete, onImageReorder, onImageUpdate
               </div>
             )}
 
+            {/* Day badges */}
+            {image.displayDays && image.displayDays.length < 7 && (
+              <div className="absolute bottom-1 left-1 z-10 flex gap-0.5 flex-wrap max-w-[calc(100%-8px)]">
+                {image.displayDays.map(day => {
+                  const dayOption = DAY_OPTIONS.find(d => d.value === day);
+                  return (
+                    <span key={day} className="bg-primary/80 text-primary-foreground text-[9px] px-1 py-0.5 rounded font-medium">
+                      {dayOption?.short || day}
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+
             {/* Media */}
             {image.itemType === 'video' ? (
               <video

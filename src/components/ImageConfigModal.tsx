@@ -5,8 +5,9 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "./ui/dialog";
-import { TRANSITION_OPTIONS, TransitionType } from "@/types/slideshow";
+import { TRANSITION_OPTIONS, TransitionType, DAY_OPTIONS, DayOfWeek } from "@/types/slideshow";
 import { VideoConfigSection } from "./VideoConfigSection";
+import { Checkbox } from "./ui/checkbox";
 
 interface ImageConfigModalProps {
   image: MenuItem | null;
@@ -21,6 +22,40 @@ export const ImageConfigModal = ({ image, isOpen, onClose, onSave }: ImageConfig
   const [videoAutoplay, setVideoAutoplay] = useState(image?.videoAutoplay !== false);
   const [videoMuted, setVideoMuted] = useState(image?.videoMuted !== false);
   const [videoLoop, setVideoLoop] = useState(image?.videoLoop || false);
+  const [displayDays, setDisplayDays] = useState<string[] | null>(image?.displayDays || null);
+
+  const allDaysSelected = displayDays === null;
+
+  const handleToggleAllDays = (checked: boolean) => {
+    if (checked) {
+      setDisplayDays(null);
+    } else {
+      setDisplayDays(DAY_OPTIONS.map(d => d.value));
+    }
+  };
+
+  const handleToggleDay = (day: DayOfWeek, checked: boolean) => {
+    if (allDaysSelected) {
+      // Switching from "all days" to specific: select all except this one if unchecking
+      if (!checked) {
+        setDisplayDays(DAY_OPTIONS.map(d => d.value).filter(d => d !== day));
+      }
+      return;
+    }
+    
+    if (checked) {
+      const newDays = [...(displayDays || []), day];
+      // If all days selected, switch to null
+      if (newDays.length === 7) {
+        setDisplayDays(null);
+      } else {
+        setDisplayDays(newDays);
+      }
+    } else {
+      const newDays = (displayDays || []).filter(d => d !== day);
+      setDisplayDays(newDays.length > 0 ? newDays : [DAY_OPTIONS[0].value]);
+    }
+  };
 
   const handleSave = () => {
     if (!image) return;
@@ -31,7 +66,8 @@ export const ImageConfigModal = ({ image, isOpen, onClose, onSave }: ImageConfig
       transitionType,
       videoAutoplay,
       videoMuted,
-      videoLoop
+      videoLoop,
+      displayDays,
     });
     onClose();
   };
@@ -66,6 +102,36 @@ export const ImageConfigModal = ({ image, isOpen, onClose, onSave }: ImageConfig
 
           <div>
             <h3 className="font-medium mb-2">{image.name}</h3>
+          </div>
+
+          {/* Display Days */}
+          <div className="space-y-2">
+            <Label>Dias de Exibição</Label>
+            <div className="flex items-center gap-2 mb-2">
+              <Checkbox
+                id="all-days"
+                checked={allDaysSelected}
+                onCheckedChange={handleToggleAllDays}
+              />
+              <label htmlFor="all-days" className="text-sm cursor-pointer">
+                Todos os dias
+              </label>
+            </div>
+            <div className="grid grid-cols-4 gap-2">
+              {DAY_OPTIONS.map((day) => (
+                <div key={day.value} className="flex items-center gap-1.5">
+                  <Checkbox
+                    id={`day-${day.value}`}
+                    checked={allDaysSelected || (displayDays || []).includes(day.value)}
+                    onCheckedChange={(checked) => handleToggleDay(day.value, !!checked)}
+                    disabled={allDaysSelected}
+                  />
+                  <label htmlFor={`day-${day.value}`} className="text-sm cursor-pointer">
+                    {day.short}
+                  </label>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Display Time */}
