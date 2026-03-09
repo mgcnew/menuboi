@@ -71,6 +71,7 @@ export type Database = {
       menu_items: {
         Row: {
           created_at: string
+          display_days: string[] | null
           display_time: number
           file_path: string
           id: string
@@ -85,6 +86,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          display_days?: string[] | null
           display_time?: number
           file_path: string
           id?: string
@@ -99,6 +101,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          display_days?: string[] | null
           display_time?: number
           file_path?: string
           id?: string
