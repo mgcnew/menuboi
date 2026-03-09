@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { MenuItem } from "@/pages/Dashboard";
 import { Button } from "./ui/button";
+import { Badge } from "./ui/badge";
 import { Trash2, Eye, GripVertical, Settings, Play } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { ImageConfigModal } from "./ImageConfigModal";
+import { DAY_OPTIONS } from "@/types/slideshow";
 
 interface ImageGridProps {
   images: MenuItem[];
