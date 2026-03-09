@@ -81,7 +81,8 @@ const Dashboard = () => {
             itemType: img.item_type || 'image',
             videoAutoplay: img.video_autoplay,
             videoMuted: img.video_muted,
-            videoLoop: img.video_loop
+            videoLoop: img.video_loop,
+            displayDays: (img as any).display_days || null,
           };
         });
         setImages(formattedImages);
