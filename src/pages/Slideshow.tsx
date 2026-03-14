@@ -220,14 +220,22 @@ const Slideshow = () => {
     return () => clearTimeout(timer);
   }, [isPlaying, images, currentIndex]);
 
-  // Real-time updates
+  // Real-time updates - listen to ALL content tables
   useEffect(() => {
+    const debouncedReload = () => {
+      clearTimeout(reloadDebounceRef.current);
+      reloadDebounceRef.current = setTimeout(() => {
+        console.log("[Slideshow] Realtime change detected, reloading...");
+        loadData();
+      }, 2000);
+    };
+
     const channel = supabase
       .channel("slideshow-updates")
-      .on("postgres_changes", { event: "*", schema: "public", table: "menu_items" }, () => {
-        clearTimeout(reloadDebounceRef.current);
-        reloadDebounceRef.current = setTimeout(loadData, 2000);
-      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "menu_items" }, debouncedReload)
+      .on("postgres_changes", { event: "*", schema: "public", table: "audio_tracks" }, debouncedReload)
+      .on("postgres_changes", { event: "*", schema: "public", table: "announcements" }, debouncedReload)
+      .on("postgres_changes", { event: "*", schema: "public", table: "playlist_tracks" }, debouncedReload)
       .on("postgres_changes", { event: "*", schema: "public", table: "slideshow_settings" }, () => {
         clearTimeout(reloadDebounceRef.current);
         reloadDebounceRef.current = setTimeout(loadSettings, 500);
