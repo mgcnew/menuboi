@@ -10,6 +10,71 @@ interface ImageUploadProps {
   onImagesUploaded: (images: MenuItem[]) => void;
 }
 
+const MAX_DIMENSION = 1920;
+const WEBP_QUALITY = 0.8;
+const JPEG_QUALITY = 0.85;
+
+const compressImage = (file: File): Promise<File> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+
+      let { width, height } = img;
+      if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
+        const ratio = Math.min(MAX_DIMENSION / width, MAX_DIMENSION / height);
+        width = Math.round(width * ratio);
+        height = Math.round(height * ratio);
+      }
+
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) { resolve(file); return; }
+      ctx.drawImage(img, 0, 0, width, height);
+
+      const tryExport = (type: string, quality: number, ext: string) => {
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              const name = file.name.replace(/\.[^/.]+$/, "") + `.${ext}`;
+              resolve(new File([blob], name, { type: blob.type }));
+            } else {
+              resolve(file);
+            }
+          },
+          type,
+          quality
+        );
+      };
+
+      // Try WebP first, fallback to JPEG
+      canvas.toBlob(
+        (blob) => {
+          if (blob && blob.type === "image/webp") {
+            const name = file.name.replace(/\.[^/.]+$/, "") + ".webp";
+            resolve(new File([blob], name, { type: blob.type }));
+          } else {
+            tryExport("image/jpeg", JPEG_QUALITY, "jpg");
+          }
+        },
+        "image/webp",
+        WEBP_QUALITY
+      );
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve(file); // fallback: upload original
+    };
+
+    img.src = url;
+  });
+};
+
 export const ImageUpload = ({ onImagesUploaded }: ImageUploadProps) => {
   const [isDragOver, setIsDragOver] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
