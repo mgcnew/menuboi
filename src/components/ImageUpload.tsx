@@ -103,7 +103,18 @@ export const ImageUpload = ({ onImagesUploaded }: ImageUploadProps) => {
 
     try {
       for (let i = 0; i < validFiles.length; i++) {
-        const file = validFiles[i];
+        let file = validFiles[i];
+        const isImage = file.type.startsWith('image/');
+        
+        // Compress images before upload
+        if (isImage) {
+          try {
+            file = await compressImage(file);
+          } catch (e) {
+            console.warn('Compression failed, uploading original:', e);
+          }
+        }
+
         const fileExt = file.name.split('.').pop();
         const fileName = `${Date.now()}_${i}.${fileExt}`;
         
