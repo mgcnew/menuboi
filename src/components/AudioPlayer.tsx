@@ -38,7 +38,7 @@ export const AudioPlayer = ({ tracks, announcements }: AudioPlayerProps) => {
   const [showControls, setShowControls] = useState(false);
   const [hasPlaylist, setHasPlaylist] = useState(false);
 
-  const controlsTimeoutRef = useRef<NodeJS.Timeout>();
+  const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
 
   // Get audio URL with caching
   const getUrl = useCallback((item: PlaylistItem): string => {

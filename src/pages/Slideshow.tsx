@@ -59,8 +59,8 @@ const Slideshow = () => {
   const failedImages = useRef(new Set<string>());
 
   const indexRef = useRef(currentIndex);
-  const controlsTimeoutRef = useRef<NodeJS.Timeout>();
-  const reloadDebounceRef = useRef<NodeJS.Timeout>();
+  const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+  const reloadDebounceRef = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => { indexRef.current = currentIndex; }, [currentIndex]);
 
