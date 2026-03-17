@@ -13,7 +13,7 @@ import { AnnouncementUpload } from "@/components/AnnouncementUpload";
 import { AnnouncementGrid } from "@/components/AnnouncementGrid";
 import { PlaylistManager } from "@/components/PlaylistManager";
 import { SlideshowSettingsCard } from "@/components/SlideshowSettingsCard";
-import { Monitor, Play, Image, Music, Settings, ExternalLink } from "lucide-react";
+import { Monitor, Play, Image, Music, Settings, ExternalLink, Sun, Moon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { TransitionType, DEFAULT_DISPLAY_TIME, DEFAULT_TRANSITION_TYPE, AudioTrack, Announcement } from "@/types/slideshow";
 import { supabase } from "@/integrations/supabase/client";
@@ -43,7 +43,17 @@ const Dashboard = () => {
   const [audios, setAudios] = useState<AudioTrack[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [transitionTime, setTransitionTime] = useState(10);
+  const [isDark, setIsDark] = useState(() => {
+    const saved = localStorage.getItem('menuboard-dark-mode');
+    return saved === 'true';
+  });
   const { toast } = useToast();
+
+  // Apply dark mode class
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', isDark);
+    localStorage.setItem('menuboard-dark-mode', String(isDark));
+  }, [isDark]);
 
   useEffect(() => {
     loadImagesFromSupabase();
@@ -629,15 +639,25 @@ const Dashboard = () => {
               </div>
             </div>
             
-            <Button
-              onClick={openSlideshow}
-              size="sm"
-              disabled={images.length === 0}
-              className="gap-2"
-            >
-              <Play className="h-4 w-4" />
-              <span className="hidden sm:inline">Abrir Slideshow</span>
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsDark(d => !d)}
+                className="h-9 w-9"
+              >
+                {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              </Button>
+              <Button
+                onClick={openSlideshow}
+                size="sm"
+                disabled={images.length === 0}
+                className="gap-2"
+              >
+                <Play className="h-4 w-4" />
+                <span className="hidden sm:inline">Abrir Slideshow</span>
+              </Button>
+            </div>
           </div>
         </div>
       </header>

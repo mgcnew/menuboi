@@ -3,6 +3,7 @@ import { Upload, Music } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { AudioTrack } from "@/types/slideshow";
+import { Progress } from "@/components/ui/progress";
 
 interface AudioUploadProps {
   onAudiosUploaded: (audios: AudioTrack[]) => void;
@@ -11,17 +12,18 @@ interface AudioUploadProps {
 export const AudioUpload = ({ onAudiosUploaded }: AudioUploadProps) => {
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadCurrent, setUploadCurrent] = useState(0);
+  const [uploadTotal, setUploadTotal] = useState(0);
   const { toast } = useToast();
 
   const uploadToSupabase = async (file: File): Promise<AudioTrack | null> => {
     try {
       const fileExt = file.name.split('.').pop();
       const fileName = `${Math.random()}.${fileExt}`;
-      const filePath = fileName;
 
       const { error: uploadError } = await supabase.storage
         .from('audio-tracks')
-        .upload(filePath, file);
+        .upload(fileName, file);
 
       if (uploadError) {
         console.error('Error uploading audio:', uploadError);
@@ -30,7 +32,7 @@ export const AudioUpload = ({ onAudiosUploaded }: AudioUploadProps) => {
 
       const { data: { publicUrl } } = supabase.storage
         .from('audio-tracks')
-        .getPublicUrl(filePath);
+        .getPublicUrl(fileName);
 
       return {
         id: crypto.randomUUID(),
@@ -46,8 +48,6 @@ export const AudioUpload = ({ onAudiosUploaded }: AudioUploadProps) => {
   };
 
   const handleFiles = async (files: FileList) => {
-    setIsUploading(true);
-    
     const audioFiles = Array.from(files).filter(file => 
       file.type.startsWith('audio/')
     );
@@ -58,14 +58,20 @@ export const AudioUpload = ({ onAudiosUploaded }: AudioUploadProps) => {
         description: "Por favor, selecione apenas arquivos de áudio.",
         variant: "destructive"
       });
-      setIsUploading(false);
       return;
     }
 
+    setIsUploading(true);
+    setUploadTotal(audioFiles.length);
+    setUploadCurrent(0);
+
     try {
-      const uploadPromises = audioFiles.map(file => uploadToSupabase(file));
-      const uploadedAudios = await Promise.all(uploadPromises);
-      const successfulAudios = uploadedAudios.filter((audio): audio is AudioTrack => audio !== null);
+      const successfulAudios: AudioTrack[] = [];
+      for (let i = 0; i < audioFiles.length; i++) {
+        setUploadCurrent(i + 1);
+        const result = await uploadToSupabase(audioFiles[i]);
+        if (result) successfulAudios.push(result);
+      }
 
       if (successfulAudios.length > 0) {
         onAudiosUploaded(successfulAudios);
@@ -104,6 +110,8 @@ export const AudioUpload = ({ onAudiosUploaded }: AudioUploadProps) => {
     setIsDragging(false);
   }, []);
 
+  const progressPercent = uploadTotal > 0 ? (uploadCurrent / uploadTotal) * 100 : 0;
+
   return (
     <div
       onDrop={handleDrop}
@@ -127,24 +135,28 @@ export const AudioUpload = ({ onAudiosUploaded }: AudioUploadProps) => {
       <div className="text-center">
         <div className="flex justify-center mb-4">
           {isUploading ? (
-            <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+            <div className="w-full max-w-xs space-y-3">
+              <div className="h-12 w-12 mx-auto animate-spin rounded-full border-4 border-primary border-t-transparent" />
+              <p className="text-sm font-medium">Enviando {uploadCurrent}/{uploadTotal}...</p>
+              <Progress value={progressPercent} className="h-2" />
+            </div>
           ) : (
             <Music className="h-12 w-12 text-muted-foreground" />
           )}
         </div>
         
-        <h3 className="text-lg font-semibold mb-2">
-          {isUploading ? 'Enviando áudios...' : 'Upload de Músicas/Vinhetas'}
-        </h3>
-        
-        <p className="text-muted-foreground mb-4">
-          Arraste os arquivos de áudio aqui ou clique para selecionar
-        </p>
-        
-        <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-          <Upload className="h-4 w-4" />
-          <span>Suporta MP3, WAV, OGG e outros formatos de áudio</span>
-        </div>
+        {!isUploading && (
+          <>
+            <h3 className="text-lg font-semibold mb-2">Upload de Músicas/Vinhetas</h3>
+            <p className="text-muted-foreground mb-4">
+              Arraste os arquivos de áudio aqui ou clique para selecionar
+            </p>
+            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+              <Upload className="h-4 w-4" />
+              <span>Suporta MP3, WAV, OGG e outros formatos de áudio</span>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

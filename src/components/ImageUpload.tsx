@@ -1,10 +1,11 @@
 import { useCallback, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Upload, X, Image as ImageIcon, Loader2 } from "lucide-react";
+import { Upload, Image as ImageIcon, Loader2 } from "lucide-react";
 import { MenuItem } from "@/pages/Dashboard";
 import { DEFAULT_DISPLAY_TIME, DEFAULT_TRANSITION_TYPE } from "@/types/slideshow";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
 
 interface ImageUploadProps {
   onImagesUploaded: (images: MenuItem[]) => void;
@@ -13,6 +14,12 @@ interface ImageUploadProps {
 const MAX_DIMENSION = 1920;
 const WEBP_QUALITY = 0.8;
 const JPEG_QUALITY = 0.85;
+
+const formatSize = (bytes: number): string => {
+  if (bytes < 1024) return `${bytes}B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)}KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+};
 
 const compressImage = (file: File): Promise<File> => {
   return new Promise((resolve, reject) => {
@@ -51,7 +58,6 @@ const compressImage = (file: File): Promise<File> => {
         );
       };
 
-      // Try WebP first, fallback to JPEG
       canvas.toBlob(
         (blob) => {
           if (blob && blob.type === "image/webp") {
@@ -68,16 +74,25 @@ const compressImage = (file: File): Promise<File> => {
 
     img.onerror = () => {
       URL.revokeObjectURL(url);
-      resolve(file); // fallback: upload original
+      resolve(file);
     };
 
     img.src = url;
   });
 };
 
+interface CompressionInfo {
+  originalSize: number;
+  compressedSize: number;
+  fileName: string;
+}
+
 export const ImageUpload = ({ onImagesUploaded }: ImageUploadProps) => {
   const [isDragOver, setIsDragOver] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadCurrent, setUploadCurrent] = useState(0);
+  const [uploadTotal, setUploadTotal] = useState(0);
+  const [compressionInfos, setCompressionInfos] = useState<CompressionInfo[]>([]);
   const { toast } = useToast();
 
   const processFiles = useCallback(async (files: FileList) => {
@@ -99,17 +114,27 @@ export const ImageUpload = ({ onImagesUploaded }: ImageUploadProps) => {
     }
 
     setIsUploading(true);
+    setUploadTotal(validFiles.length);
+    setUploadCurrent(0);
+    setCompressionInfos([]);
     const newImages: MenuItem[] = [];
 
     try {
       for (let i = 0; i < validFiles.length; i++) {
         let file = validFiles[i];
         const isImage = file.type.startsWith('image/');
+        setUploadCurrent(i + 1);
         
-        // Compress images before upload
+        const originalSize = file.size;
+
         if (isImage) {
           try {
             file = await compressImage(file);
+            setCompressionInfos(prev => [...prev, {
+              originalSize,
+              compressedSize: file.size,
+              fileName: validFiles[i].name,
+            }]);
           } catch (e) {
             console.warn('Compression failed, uploading original:', e);
           }
@@ -177,17 +202,16 @@ export const ImageUpload = ({ onImagesUploaded }: ImageUploadProps) => {
       });
     } finally {
       setIsUploading(false);
+      // Keep compression infos visible for 5 seconds
+      setTimeout(() => setCompressionInfos([]), 5000);
     }
   }, [onImagesUploaded, toast]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
-    
     const files = e.dataTransfer.files;
-    if (files.length > 0) {
-      processFiles(files);
-    }
+    if (files.length > 0) processFiles(files);
   }, [processFiles]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -202,55 +226,77 @@ export const ImageUpload = ({ onImagesUploaded }: ImageUploadProps) => {
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    if (files && files.length > 0) {
-      processFiles(files);
-    }
+    if (files && files.length > 0) processFiles(files);
     e.target.value = '';
   }, [processFiles]);
 
+  const progressPercent = uploadTotal > 0 ? (uploadCurrent / uploadTotal) * 100 : 0;
+
   return (
-    <div
-      className={`
-        relative border-2 border-dashed rounded-lg p-6 text-center transition-all cursor-pointer
-        ${isDragOver 
-          ? 'border-primary bg-primary/5' 
-          : 'border-muted-foreground/25 hover:border-muted-foreground/50 hover:bg-muted/50'
-        }
-      `}
-      onDrop={handleDrop}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onClick={() => !isUploading && document.getElementById('file-input')?.click()}
-    >
-      <div className="flex flex-col items-center gap-2">
-        {isUploading ? (
-          <>
-            <Loader2 className="h-8 w-8 text-primary animate-spin" />
-            <p className="text-sm font-medium">Enviando...</p>
-          </>
-        ) : (
-          <>
-            <Upload className={`h-8 w-8 ${isDragOver ? 'text-primary' : 'text-muted-foreground'}`} />
-            <div>
-              <p className="text-sm font-medium">
-                Arraste arquivos aqui ou clique para selecionar
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                JPG, PNG, WebP, MP4, WebM
-              </p>
+    <div className="space-y-3">
+      <div
+        className={`
+          relative border-2 border-dashed rounded-lg p-6 text-center transition-all cursor-pointer
+          ${isDragOver 
+            ? 'border-primary bg-primary/5' 
+            : 'border-muted-foreground/25 hover:border-muted-foreground/50 hover:bg-muted/50'
+          }
+        `}
+        onDrop={handleDrop}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onClick={() => !isUploading && document.getElementById('file-input')?.click()}
+      >
+        <div className="flex flex-col items-center gap-2">
+          {isUploading ? (
+            <div className="w-full space-y-3">
+              <div className="flex items-center justify-center gap-2">
+                <Loader2 className="h-5 w-5 text-primary animate-spin" />
+                <p className="text-sm font-medium">
+                  Enviando {uploadCurrent}/{uploadTotal}...
+                </p>
+              </div>
+              <Progress value={progressPercent} className="h-2" />
             </div>
-          </>
-        )}
+          ) : (
+            <>
+              <Upload className={`h-8 w-8 ${isDragOver ? 'text-primary' : 'text-muted-foreground'}`} />
+              <div>
+                <p className="text-sm font-medium">
+                  Arraste arquivos aqui ou clique para selecionar
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  JPG, PNG, WebP, MP4, WebM
+                </p>
+              </div>
+            </>
+          )}
+        </div>
+
+        <input
+          id="file-input"
+          type="file"
+          multiple
+          accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/ogg"
+          onChange={handleFileSelect}
+          className="hidden"
+        />
       </div>
 
-      <input
-        id="file-input"
-        type="file"
-        multiple
-        accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/ogg"
-        onChange={handleFileSelect}
-        className="hidden"
-      />
+      {/* Compression info badges */}
+      {compressionInfos.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {compressionInfos.map((info, i) => {
+            const savings = Math.round((1 - info.compressedSize / info.originalSize) * 100);
+            return (
+              <Badge key={i} variant="secondary" className="text-xs font-normal gap-1">
+                {formatSize(info.originalSize)} → {formatSize(info.compressedSize)}
+                <span className="text-green-600 dark:text-green-400 font-medium">-{savings}%</span>
+              </Badge>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };

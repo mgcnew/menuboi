@@ -1,8 +1,9 @@
 import { useCallback, useState } from "react";
-import { Music, Upload } from "lucide-react";
+import { Music } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Announcement } from "@/types/slideshow";
+import { Progress } from "@/components/ui/progress";
 
 interface AnnouncementUploadProps {
   onAnnouncementsUploaded: (announcements: Announcement[]) => void;
@@ -11,6 +12,8 @@ interface AnnouncementUploadProps {
 export const AnnouncementUpload = ({ onAnnouncementsUploaded }: AnnouncementUploadProps) => {
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadCurrent, setUploadCurrent] = useState(0);
+  const [uploadTotal, setUploadTotal] = useState(0);
   const { toast } = useToast();
 
   const uploadToSupabase = async (file: File): Promise<Announcement | null> => {
@@ -60,10 +63,13 @@ export const AnnouncementUpload = ({ onAnnouncementsUploaded }: AnnouncementUplo
     }
 
     setIsUploading(true);
+    setUploadTotal(audioFiles.length);
+    setUploadCurrent(0);
     const uploadedAnnouncements: Announcement[] = [];
 
-    for (const file of audioFiles) {
-      const announcement = await uploadToSupabase(file);
+    for (let i = 0; i < audioFiles.length; i++) {
+      setUploadCurrent(i + 1);
+      const announcement = await uploadToSupabase(audioFiles[i]);
       if (announcement) {
         uploadedAnnouncements.push(announcement);
       }
@@ -90,9 +96,7 @@ export const AnnouncementUpload = ({ onAnnouncementsUploaded }: AnnouncementUplo
     e.preventDefault();
     setIsDragging(false);
     const files = e.dataTransfer.files;
-    if (files.length > 0) {
-      handleFiles(files);
-    }
+    if (files.length > 0) handleFiles(files);
   }, []);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -107,11 +111,11 @@ export const AnnouncementUpload = ({ onAnnouncementsUploaded }: AnnouncementUplo
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    if (files && files.length > 0) {
-      handleFiles(files);
-    }
+    if (files && files.length > 0) handleFiles(files);
     e.target.value = '';
   }, []);
+
+  const progressPercent = uploadTotal > 0 ? (uploadCurrent / uploadTotal) * 100 : 0;
 
   return (
     <div
@@ -139,16 +143,19 @@ export const AnnouncementUpload = ({ onAnnouncementsUploaded }: AnnouncementUplo
           )}
         </div>
         
-        <div className="text-center">
-          <h3 className="text-lg font-medium mb-2">
-            {isUploading ? 'Fazendo upload...' : 'Arraste suas locuções aqui'}
-          </h3>
-          <p className="text-muted-foreground mb-2">
-            ou clique para selecionar arquivos
-          </p>
-          <p className="text-sm text-muted-foreground">
-            MP3, WAV, OGG, M4A • Máximo: 10MB por arquivo
-          </p>
+        <div className="text-center w-full">
+          {isUploading ? (
+            <div className="space-y-2 max-w-xs mx-auto">
+              <p className="text-sm font-medium">Enviando {uploadCurrent}/{uploadTotal}...</p>
+              <Progress value={progressPercent} className="h-2" />
+            </div>
+          ) : (
+            <>
+              <h3 className="text-lg font-medium mb-2">Arraste suas locuções aqui</h3>
+              <p className="text-muted-foreground mb-2">ou clique para selecionar arquivos</p>
+              <p className="text-sm text-muted-foreground">MP3, WAV, OGG, M4A • Máximo: 10MB por arquivo</p>
+            </>
+          )}
         </div>
       </div>
     </div>

@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { menuItemsTable, audioTracksTable, announcementsTable, playlistTracksTable, slideshowSettingsTable } from "@/lib/supabase-helpers";
 import { AudioPlayer } from "@/components/AudioPlayer";
 import { InfoWidget } from "@/components/InfoWidget";
-import { ChevronLeft, ChevronRight, Pause, Play, RefreshCw } from "lucide-react";
+import { ChevronLeft, ChevronRight, Pause, Play, RefreshCw, Wifi, WifiOff } from "lucide-react";
 
 // Preload image utility with timeout
 const preloadImage = (url: string, timeout = 10000): Promise<void> => {
@@ -220,7 +220,12 @@ const Slideshow = () => {
     return () => clearTimeout(timer);
   }, [isPlaying, images, currentIndex]);
 
-  // Real-time updates - listen to ALL content tables
+  // Connection status state
+  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'reconnecting'>('disconnected');
+  const reconnectAttemptsRef = useRef(0);
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout>>();
+
+  // Real-time updates with auto-reconnect
   useEffect(() => {
     const debouncedReload = () => {
       clearTimeout(reloadDebounceRef.current);
@@ -230,7 +235,7 @@ const Slideshow = () => {
       }, 2000);
     };
 
-    const channel = supabase
+    let channel = supabase
       .channel("slideshow-updates")
       .on("postgres_changes", { event: "*", schema: "public", table: "menu_items" }, debouncedReload)
       .on("postgres_changes", { event: "*", schema: "public", table: "audio_tracks" }, debouncedReload)
@@ -239,9 +244,49 @@ const Slideshow = () => {
       .on("postgres_changes", { event: "*", schema: "public", table: "slideshow_settings" }, () => {
         clearTimeout(reloadDebounceRef.current);
         reloadDebounceRef.current = setTimeout(loadSettings, 500);
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); clearTimeout(reloadDebounceRef.current); };
+      });
+
+    const subscribe = () => {
+      channel.subscribe((status) => {
+        console.log("[Slideshow] Realtime status:", status);
+        if (status === "SUBSCRIBED") {
+          setConnectionStatus('connected');
+          reconnectAttemptsRef.current = 0;
+          // Reload data on reconnect to catch missed changes
+          if (reconnectAttemptsRef.current > 0) loadData();
+        } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          setConnectionStatus('reconnecting');
+          const delay = Math.min(2000 * Math.pow(2, reconnectAttemptsRef.current), 30000);
+          reconnectAttemptsRef.current += 1;
+          console.log(`[Slideshow] Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current})`);
+          clearTimeout(reconnectTimerRef.current);
+          reconnectTimerRef.current = setTimeout(() => {
+            supabase.removeChannel(channel);
+            channel = supabase
+              .channel("slideshow-updates-" + Date.now())
+              .on("postgres_changes", { event: "*", schema: "public", table: "menu_items" }, debouncedReload)
+              .on("postgres_changes", { event: "*", schema: "public", table: "audio_tracks" }, debouncedReload)
+              .on("postgres_changes", { event: "*", schema: "public", table: "announcements" }, debouncedReload)
+              .on("postgres_changes", { event: "*", schema: "public", table: "playlist_tracks" }, debouncedReload)
+              .on("postgres_changes", { event: "*", schema: "public", table: "slideshow_settings" }, () => {
+                clearTimeout(reloadDebounceRef.current);
+                reloadDebounceRef.current = setTimeout(loadSettings, 500);
+              });
+            subscribe();
+          }, delay);
+        } else if (status === "CLOSED") {
+          setConnectionStatus('disconnected');
+        }
+      });
+    };
+
+    subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearTimeout(reloadDebounceRef.current);
+      clearTimeout(reconnectTimerRef.current);
+    };
   }, [loadData, loadSettings]);
 
   // Mouse controls
@@ -372,7 +417,15 @@ const Slideshow = () => {
           <ChevronRight className="h-6 w-6" />
         </button>
 
-        <div className="absolute bottom-8 right-8 flex gap-3">
+        <div className="absolute bottom-8 right-8 flex items-center gap-3">
+          <div className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-medium ${
+            connectionStatus === 'connected' ? 'bg-green-500/20 text-green-400' :
+            connectionStatus === 'reconnecting' ? 'bg-yellow-500/20 text-yellow-400' :
+            'bg-red-500/20 text-red-400'
+          }`}>
+            {connectionStatus === 'connected' ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
+            {connectionStatus === 'connected' ? 'Online' : connectionStatus === 'reconnecting' ? 'Reconectando...' : 'Offline'}
+          </div>
           <button onClick={loadData} className="bg-black/50 text-white p-4 rounded-full hover:bg-black/70">
             <RefreshCw className="h-6 w-6" />
           </button>
