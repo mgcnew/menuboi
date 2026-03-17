@@ -639,15 +639,25 @@ const Dashboard = () => {
               </div>
             </div>
             
-            <Button
-              onClick={openSlideshow}
-              size="sm"
-              disabled={images.length === 0}
-              className="gap-2"
-            >
-              <Play className="h-4 w-4" />
-              <span className="hidden sm:inline">Abrir Slideshow</span>
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsDark(d => !d)}
+                className="h-9 w-9"
+              >
+                {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              </Button>
+              <Button
+                onClick={openSlideshow}
+                size="sm"
+                disabled={images.length === 0}
+                className="gap-2"
+              >
+                <Play className="h-4 w-4" />
+                <span className="hidden sm:inline">Abrir Slideshow</span>
+              </Button>
+            </div>
           </div>
         </div>
       </header>

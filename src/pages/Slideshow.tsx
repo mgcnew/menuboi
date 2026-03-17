@@ -417,7 +417,15 @@ const Slideshow = () => {
           <ChevronRight className="h-6 w-6" />
         </button>
 
-        <div className="absolute bottom-8 right-8 flex gap-3">
+        <div className="absolute bottom-8 right-8 flex items-center gap-3">
+          <div className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-medium ${
+            connectionStatus === 'connected' ? 'bg-green-500/20 text-green-400' :
+            connectionStatus === 'reconnecting' ? 'bg-yellow-500/20 text-yellow-400' :
+            'bg-red-500/20 text-red-400'
+          }`}>
+            {connectionStatus === 'connected' ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
+            {connectionStatus === 'connected' ? 'Online' : connectionStatus === 'reconnecting' ? 'Reconectando...' : 'Offline'}
+          </div>
           <button onClick={loadData} className="bg-black/50 text-white p-4 rounded-full hover:bg-black/70">
             <RefreshCw className="h-6 w-6" />
           </button>
