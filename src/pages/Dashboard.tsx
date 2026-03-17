@@ -43,7 +43,17 @@ const Dashboard = () => {
   const [audios, setAudios] = useState<AudioTrack[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [transitionTime, setTransitionTime] = useState(10);
+  const [isDark, setIsDark] = useState(() => {
+    const saved = localStorage.getItem('menuboard-dark-mode');
+    return saved === 'true';
+  });
   const { toast } = useToast();
+
+  // Apply dark mode class
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', isDark);
+    localStorage.setItem('menuboard-dark-mode', String(isDark));
+  }, [isDark]);
 
   useEffect(() => {
     loadImagesFromSupabase();
