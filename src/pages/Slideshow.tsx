@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { menuItemsTable, audioTracksTable, announcementsTable, playlistTracksTable, slideshowSettingsTable } from "@/lib/supabase-helpers";
 import { AudioPlayer } from "@/components/AudioPlayer";
 import { InfoWidget } from "@/components/InfoWidget";
-import { ChevronLeft, ChevronRight, Pause, Play, RefreshCw } from "lucide-react";
+import { ChevronLeft, ChevronRight, Pause, Play, RefreshCw, Wifi, WifiOff } from "lucide-react";
 
 // Preload image utility with timeout
 const preloadImage = (url: string, timeout = 10000): Promise<void> => {
