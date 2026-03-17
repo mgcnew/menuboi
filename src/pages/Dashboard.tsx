@@ -13,7 +13,7 @@ import { AnnouncementUpload } from "@/components/AnnouncementUpload";
 import { AnnouncementGrid } from "@/components/AnnouncementGrid";
 import { PlaylistManager } from "@/components/PlaylistManager";
 import { SlideshowSettingsCard } from "@/components/SlideshowSettingsCard";
-import { Monitor, Play, Image, Music, Settings, ExternalLink } from "lucide-react";
+import { Monitor, Play, Image, Music, Settings, ExternalLink, Sun, Moon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { TransitionType, DEFAULT_DISPLAY_TIME, DEFAULT_TRANSITION_TYPE, AudioTrack, Announcement } from "@/types/slideshow";
 import { supabase } from "@/integrations/supabase/client";
