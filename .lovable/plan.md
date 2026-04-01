@@ -1,60 +1,43 @@
 
 
-## Plano: Melhorar Instalação PWA na TV
+## Plano: Simplificar Transições do Slideshow
 
-### Problema
-O prompt de instalação aparece na TV, mas o navegador da TV não suporta o evento `beforeinstallprompt` de forma confiável, impossibilitando a instalação automática. O usuário precisa de uma forma prática de ter o app na tela inicial da TV.
+### Problema Identificado
 
----
+O sistema dual-buffer atual tem um bug de sincronização: quando `activeBuffer` e `currentIndex` mudam no mesmo render, o buffer "entrante" ainda não tem a imagem carregada, causando frames em branco e travamentos. A lógica nas linhas 389-403 é complexa e frágil — buffer 1 mostra `current` ou `nextImage` dependendo de qual buffer está ativo, mas ambos referenciam o mesmo `currentIndex`.
 
-### Solução: Abordagem em 3 Frentes
+### Solução: Crossfade Simples com Dois Layers
 
-#### 1. Instruções Passo-a-Passo Específicas por Navegador
+Reescrever o sistema de transição com uma abordagem mais simples e confiável:
 
-Melhorar o componente `PWAInstallPrompt.tsx` para detectar qual navegador a TV está usando e mostrar instruções específicas:
+```text
+Layer A: imagem atual (opacity 1)
+Layer B: próxima imagem (opacity 0, pré-carregando)
 
-- **Chrome (Android TV)**: Menu (3 pontos) > "Adicionar à tela inicial"
-- **Puffin TV**: Menu > "Criar atalho"
-- **TV Browser / WebOS / Tizen**: Instruções adaptadas
+Ao avançar:
+  1. Garantir que Layer B já carregou a imagem
+  2. Fade Layer B para opacity 1
+  3. Após transição CSS acabar, trocar papéis (B vira A)
+```
 
-Incluir imagens/ícones ilustrativos para cada passo, facilitando para qualquer pessoa seguir.
+### Mudanças no arquivo `src/pages/Slideshow.tsx`
 
-#### 2. QR Code no Painel Admin
-
-Adicionar um gerador de QR Code na página do Dashboard e na página `/tv-config` que aponta diretamente para a URL `/tv`. Assim o usuário pode:
-- Abrir a câmera do celular
-- Escanear o QR Code
-- Enviar o link para a TV via Cast ou simplesmente digitar uma vez
-
-#### 3. Otimizar start_url do PWA
-
-Mudar o `start_url` no manifest para `/tv`, para que quando o app for instalado na TV, ele abra diretamente na interface otimizada para TV (sem precisar navegar manualmente).
-
----
-
-### Arquivos a Modificar
-
-| Arquivo | Mudança |
-|---------|---------|
-| `src/components/PWAInstallPrompt.tsx` | Instruções detalhadas por navegador com visual melhorado |
-| `src/pages/TVPreparation.tsx` | Adicionar QR Code com URL da TV |
-| `src/pages/Dashboard.tsx` | Adicionar QR Code na aba de configurações |
-| `vite.config.ts` | Alterar `start_url` para `/tv` |
-
-### Detalhes Técnicos
-
-**QR Code**: Usar uma biblioteca leve de geração de QR Code no lado do cliente (ex: `qrcode.react`) ou gerar via API gratuita (`https://api.qrserver.com/v1/create-qr-code/`).
-
-**Detecção de navegador na TV**: Expandir a função `isAndroidTV()` para identificar o navegador específico (Chrome, Puffin, WebView) e ajustar as instruções.
-
-**Manifest otimizado**: Adicionar `categories: ["entertainment"]` e `display_override: ["standalone", "fullscreen"]` para melhor compatibilidade com TVs Android.
-
----
+1. **Remover** sistema dual-buffer (`activeBuffer`, `bufferReady`, swap logic)
+2. **Adicionar** dois refs persistentes: `currentUrl` e `nextUrl` (strings, não índices)
+3. **Pré-carregar** a próxima imagem no layer oculto via `<img>` nativo com `onLoad`
+4. **Crossfade** apenas quando `onLoad` da próxima imagem dispara — nunca mostra imagem não carregada
+5. **Transição CSS**: `opacity` com `duration-700 ease-in-out` — suave e sem animações complexas
+6. **Fallback**: se imagem não carrega em 8s, pula para a seguinte
+7. **Simplificar** `renderMedia` — sem keys dinâmicas, sem lógica condicional de buffer
 
 ### Resultado Esperado
 
-- Instruções claras e visuais para instalar na TV, adaptadas ao navegador usado
-- QR Code disponível no painel admin para facilitar o acesso à URL da TV
-- Quando instalado, o app abre direto na tela da TV sem precisar digitar URL
-- Qualquer pessoa consegue seguir os passos sem conhecimento técnico
+- Imagens sempre aparecem já carregadas (nunca flash branco)
+- Transição suave de fade, sem travamentos
+- Código mais simples e fácil de manter
+- Vídeos continuam funcionando normalmente
+
+| Arquivo | Mudança |
+|---------|---------|
+| `src/pages/Slideshow.tsx` | Reescrever sistema de transição (crossfade simples) |
 
