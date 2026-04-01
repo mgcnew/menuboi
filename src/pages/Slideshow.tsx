@@ -8,21 +8,6 @@ import { AudioPlayer } from "@/components/AudioPlayer";
 import { InfoWidget } from "@/components/InfoWidget";
 import { ChevronLeft, ChevronRight, Pause, Play, RefreshCw, Wifi, WifiOff } from "lucide-react";
 
-// Preload image utility with timeout
-const preloadImage = (url: string, timeout = 10000): Promise<void> => {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    const timer = setTimeout(() => {
-      img.onload = null;
-      img.onerror = null;
-      resolve();
-    }, timeout);
-    img.onload = () => { clearTimeout(timer); resolve(); };
-    img.onerror = () => { clearTimeout(timer); reject(); };
-    img.src = url;
-  });
-};
-
 const createDefaultSettings = (): SlideshowSettings => ({
   id: "default",
   ...DEFAULT_SLIDESHOW_SETTINGS,
@@ -50,17 +35,19 @@ const Slideshow = () => {
   const [isPlaying, setIsPlaying] = useState(true);
   const [showControls, setShowControls] = useState(false);
 
-  // Dual-buffer state: which buffer (0 or 1) is active
-  const [activeBuffer, setActiveBuffer] = useState(0);
-  const [bufferReady, setBufReady] = useState([false, false]);
-
-  // Persistent image cache ref - never cleared between reloads
-  const imageCache = useRef(new Set<string>());
-  const failedImages = useRef(new Set<string>());
+  // Crossfade state: which layer (0 or 1) is in front
+  const [activeLayer, setActiveLayer] = useState<0 | 1>(0);
+  // Each layer holds an index into images[]
+  const [layerContent, setLayerContent] = useState<[number, number]>([0, 0]);
+  // Whether the next layer's image has finished loading
+  const nextLoadedRef = useRef(false);
+  const transitioningRef = useRef(false);
 
   const indexRef = useRef(currentIndex);
   const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
   const reloadDebounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const autoAdvanceRef = useRef<ReturnType<typeof setTimeout>>();
+  const fallbackTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => { indexRef.current = currentIndex; }, [currentIndex]);
 
@@ -71,7 +58,6 @@ const Slideshow = () => {
       img.displayDays === null || img.displayDays === undefined || img.displayDays.length === 0 || img.displayDays.includes(today)
     );
     setImages(filtered);
-    // Reset index if it's out of bounds
     setCurrentIndex(prev => filtered.length > 0 ? prev % filtered.length : 0);
   }, [allImages]);
 
@@ -126,7 +112,6 @@ const Slideshow = () => {
         setAllImages(formatted);
       }
 
-      // Load audios
       let audioIds: string[] | null = null;
       if (playlistId) {
         const { data: pt } = await playlistTracksTable()
@@ -150,7 +135,6 @@ const Slideshow = () => {
         })));
       }
 
-      // Load announcements
       const announcementsRes = await announcementsTable()
         .select("*").order("order_index", { ascending: true });
       if (announcementsRes.data) {
@@ -166,61 +150,120 @@ const Slideshow = () => {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // Preload next 4 images aggressively in background
+  // Preload next few images in background
   useEffect(() => {
     if (images.length === 0) return;
     let cancelled = false;
 
-    const preloadAhead = async () => {
-      for (let i = 0; i < Math.min(4, images.length); i++) {
+    const preload = () => {
+      for (let i = 1; i <= Math.min(3, images.length - 1); i++) {
         if (cancelled) return;
         const idx = (currentIndex + i) % images.length;
-        const img = images[idx];
-        if (img.itemType === "video") continue;
-        if (imageCache.current.has(img.url) || failedImages.current.has(img.url)) continue;
-
-        try {
-          await preloadImage(img.url, 10000);
-          imageCache.current.add(img.url);
-        } catch {
-          failedImages.current.add(img.url);
-        }
+        const item = images[idx];
+        if (item.itemType === "video") continue;
+        const img = new Image();
+        img.src = item.url;
       }
     };
 
-    const timer = setTimeout(preloadAhead, 100);
+    const timer = setTimeout(preload, 200);
     return () => { cancelled = true; clearTimeout(timer); };
   }, [images, currentIndex]);
 
-  // When currentIndex changes, set up dual buffers
-  useEffect(() => {
-    if (images.length === 0) return;
-    const current = images[currentIndex];
+  // Advance to a specific index with crossfade
+  const advanceTo = useCallback((nextIdx: number) => {
+    if (images.length === 0 || transitioningRef.current) return;
     
-    // Current buffer is always "ready" - show immediately even if loading
-    if (current.itemType === "video" || imageCache.current.has(current.url)) {
-      setBufReady(prev => {
-        const next = [...prev];
-        next[activeBuffer] = true;
-        return next;
-      });
-    }
-  }, [currentIndex, images, activeBuffer]);
+    const nextLayer: 0 | 1 = activeLayer === 0 ? 1 : 0;
+    
+    // Put the next image on the hidden layer
+    setLayerContent(prev => {
+      const updated = [...prev] as [number, number];
+      updated[nextLayer] = nextIdx;
+      return updated;
+    });
+    
+    setCurrentIndex(nextIdx);
+    nextLoadedRef.current = false;
+    transitioningRef.current = true;
 
-  // Auto-advance with dual-buffer swap
+    const item = images[nextIdx];
+    
+    if (item?.itemType === "video") {
+      // Videos: swap immediately
+      setTimeout(() => {
+        setActiveLayer(nextLayer);
+        transitioningRef.current = false;
+      }, 50);
+      return;
+    }
+
+    // For images: the onLoad handler on the hidden layer will trigger the swap
+    // Set a fallback timer in case the image fails to fire onLoad
+    clearTimeout(fallbackTimerRef.current);
+    fallbackTimerRef.current = setTimeout(() => {
+      if (transitioningRef.current) {
+        console.warn("[Slideshow] Fallback: forcing transition after timeout");
+        setActiveLayer(nextLayer);
+        transitioningRef.current = false;
+      }
+    }, 8000);
+  }, [images, activeLayer]);
+
+  // Called when the hidden layer's image loads
+  const handleNextImageLoaded = useCallback(() => {
+    if (!transitioningRef.current) return;
+    clearTimeout(fallbackTimerRef.current);
+    nextLoadedRef.current = true;
+    
+    // Swap layers - the CSS transition handles the fade
+    setActiveLayer(prev => prev === 0 ? 1 : 0);
+    
+    // After the CSS transition completes, mark as done
+    setTimeout(() => {
+      transitioningRef.current = false;
+    }, 750);
+  }, []);
+
+  // Handle image load error on hidden layer
+  const handleNextImageError = useCallback(() => {
+    if (!transitioningRef.current) return;
+    clearTimeout(fallbackTimerRef.current);
+    console.warn("[Slideshow] Image failed to load, skipping");
+    transitioningRef.current = false;
+    
+    // Skip to the next one
+    const nextIdx = (indexRef.current + 1) % images.length;
+    setTimeout(() => advanceTo(nextIdx), 500);
+  }, [images.length, advanceTo]);
+
+  // Initialize layers when images first load
+  useEffect(() => {
+    if (images.length > 0) {
+      setLayerContent([currentIndex, currentIndex]);
+      setActiveLayer(0);
+      transitioningRef.current = false;
+    }
+    // Only run on images change, not currentIndex
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [images.length]);
+
+  // Auto-advance timer
   useEffect(() => {
     if (!isPlaying || images.length === 0) return;
-    const current = images[indexRef.current];
+    
+    const current = images[currentIndex];
     const time = (current?.displayTime || 10) * 1000;
-    const timer = setTimeout(() => {
-      // Swap buffers
-      setActiveBuffer(prev => prev === 0 ? 1 : 0);
-      setCurrentIndex(prev => (prev + 1) % images.length);
+    
+    autoAdvanceRef.current = setTimeout(() => {
+      const nextIdx = (indexRef.current + 1) % images.length;
+      advanceTo(nextIdx);
     }, time);
-    return () => clearTimeout(timer);
-  }, [isPlaying, images, currentIndex]);
+    
+    return () => clearTimeout(autoAdvanceRef.current);
+  }, [isPlaying, images, currentIndex, advanceTo]);
 
-  // Connection status state
+  // Connection status
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'reconnecting'>('disconnected');
   const reconnectAttemptsRef = useRef(0);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout>>();
@@ -251,14 +294,12 @@ const Slideshow = () => {
         console.log("[Slideshow] Realtime status:", status);
         if (status === "SUBSCRIBED") {
           setConnectionStatus('connected');
-          reconnectAttemptsRef.current = 0;
-          // Reload data on reconnect to catch missed changes
           if (reconnectAttemptsRef.current > 0) loadData();
+          reconnectAttemptsRef.current = 0;
         } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
           setConnectionStatus('reconnecting');
           const delay = Math.min(2000 * Math.pow(2, reconnectAttemptsRef.current), 30000);
           reconnectAttemptsRef.current += 1;
-          console.log(`[Slideshow] Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current})`);
           clearTimeout(reconnectTimerRef.current);
           reconnectTimerRef.current = setTimeout(() => {
             supabase.removeChannel(channel);
@@ -306,13 +347,11 @@ const Slideshow = () => {
       switch (e.key) {
         case "ArrowRight": case " ":
           e.preventDefault();
-          setActiveBuffer(prev => prev === 0 ? 1 : 0);
-          setCurrentIndex(p => (p + 1) % images.length);
+          advanceTo((indexRef.current + 1) % images.length);
           break;
         case "ArrowLeft":
           e.preventDefault();
-          setActiveBuffer(prev => prev === 0 ? 1 : 0);
-          setCurrentIndex(p => (p - 1 + images.length) % images.length);
+          advanceTo((indexRef.current - 1 + images.length) % images.length);
           break;
         case "p": case "P":
           e.preventDefault(); setIsPlaying(p => !p); break;
@@ -324,7 +363,7 @@ const Slideshow = () => {
     };
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [images.length, loadData]);
+  }, [images.length, loadData, advanceTo]);
 
   // Empty state
   if (images.length === 0) {
@@ -341,40 +380,33 @@ const Slideshow = () => {
   }
 
   const current = images[currentIndex];
-  const nextIndex = (currentIndex + 1) % images.length;
-  const nextImage = images[nextIndex];
 
-  const renderMedia = (item: MenuItem, isNext: boolean) => {
+  const renderLayerMedia = (layerIdx: 0 | 1, isActive: boolean) => {
+    const imgIndex = layerContent[layerIdx];
+    const item = images[imgIndex];
+    if (!item) return null;
+
     if (item.itemType === "video") {
       return (
         <video
-          key={item.id}
+          key={`video-${item.id}`}
           src={item.url}
           className="w-full h-full object-cover"
           autoPlay muted loop={item.videoLoop} playsInline
         />
       );
     }
+
     return (
       <img
-        key={item.id + (isNext ? '-next' : '')}
+        key={`img-${layerIdx}-${item.id}`}
         src={item.url}
         alt={item.name}
         className="w-full h-full object-cover"
         loading="eager"
         decoding="async"
-        onLoad={() => { imageCache.current.add(item.url); }}
-        onError={() => {
-          failedImages.current.add(item.url);
-          if (!isNext) {
-            setTimeout(() => {
-              if (indexRef.current === currentIndex) {
-                setActiveBuffer(prev => prev === 0 ? 1 : 0);
-                setCurrentIndex(p => (p + 1) % images.length);
-              }
-            }, 2000);
-          }
-        }}
+        onLoad={!isActive ? handleNextImageLoaded : undefined}
+        onError={!isActive ? handleNextImageError : undefined}
       />
     );
   };
@@ -384,34 +416,32 @@ const Slideshow = () => {
       <AudioPlayer tracks={audios} announcements={announcements} />
       <InfoWidget settings={settings} />
 
-      {/* Dual-buffer rendering: two layers, one visible, one preloading */}
+      {/* Two-layer crossfade */}
       <div className="absolute inset-0">
-        {/* Buffer 0 */}
         <div
-          className="absolute inset-0 transition-opacity duration-500"
-          style={{ opacity: activeBuffer === 0 ? 1 : 0, zIndex: activeBuffer === 0 ? 2 : 1 }}
+          className="absolute inset-0 transition-opacity duration-700 ease-in-out"
+          style={{ opacity: activeLayer === 0 ? 1 : 0, zIndex: activeLayer === 0 ? 2 : 1 }}
         >
-          {renderMedia(current, false)}
+          {renderLayerMedia(0, activeLayer === 0)}
         </div>
-        {/* Buffer 1 - preloads next image */}
         <div
-          className="absolute inset-0 transition-opacity duration-500"
-          style={{ opacity: activeBuffer === 1 ? 1 : 0, zIndex: activeBuffer === 1 ? 2 : 1 }}
+          className="absolute inset-0 transition-opacity duration-700 ease-in-out"
+          style={{ opacity: activeLayer === 1 ? 1 : 0, zIndex: activeLayer === 1 ? 2 : 1 }}
         >
-          {activeBuffer === 1 ? renderMedia(current, false) : renderMedia(nextImage, true)}
+          {renderLayerMedia(1, activeLayer === 1)}
         </div>
       </div>
 
       {/* Controls */}
       <div className={`absolute inset-0 z-10 transition-opacity duration-300 ${showControls ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
         <button
-          onClick={() => { setActiveBuffer(p => p === 0 ? 1 : 0); setCurrentIndex(p => (p - 1 + images.length) % images.length); }}
+          onClick={() => advanceTo((currentIndex - 1 + images.length) % images.length)}
           className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/50 text-white p-3 rounded-full hover:bg-black/70"
         >
           <ChevronLeft className="h-6 w-6" />
         </button>
         <button
-          onClick={() => { setActiveBuffer(p => p === 0 ? 1 : 0); setCurrentIndex(p => (p + 1) % images.length); }}
+          onClick={() => advanceTo((currentIndex + 1) % images.length)}
           className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/50 text-white p-3 rounded-full hover:bg-black/70"
         >
           <ChevronRight className="h-6 w-6" />
@@ -446,7 +476,7 @@ const Slideshow = () => {
             {images.map((_, i) => (
               <button
                 key={i}
-                onClick={() => { setActiveBuffer(p => p === 0 ? 1 : 0); setCurrentIndex(i); }}
+                onClick={() => advanceTo(i)}
                 className={`w-3 h-3 rounded-full ${i === currentIndex ? "bg-white" : "bg-white/30"}`}
               />
             ))}
