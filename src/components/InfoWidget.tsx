@@ -115,7 +115,7 @@ const WeatherWidget = memo(({ lat, lon }: { lat: number; lon: number }) => {
 WeatherWidget.displayName = "WeatherWidget";
 
 export const InfoWidget = memo(({ settings }: InfoWidgetProps) => {
-  const showInfoWidget = settings.showClock || settings.showDate || settings.showWeather;
+  const showInfoWidget = settings.showClock || settings.showWeather;
 
   // Don't render anything for minimal theme unless there's a logo or message
   if (settings.theme === "minimal" && !settings.showLogo && !settings.customMessage) {
