@@ -1,43 +1,52 @@
 
 
-## Plano: Simplificar Transições do Slideshow
+## Plano: Recarregar TV automaticamente ao alterar conteúdo
 
-### Problema Identificado
+### Situação Atual
+Hoje o Realtime detecta mudanças nas tabelas (`menu_items`, `audio_tracks`, `announcements`, `playlist_tracks`) com debounce de 2s e chama `loadData()` em background. O problema é que essa atualização "silenciosa" às vezes não reflete bem na tela — especialmente porque o slideshow já está em loop, vídeos podem estar tocando, e o estado interno (`currentIndex`, layers de crossfade) pode ficar dessincronizado com a nova lista.
 
-O sistema dual-buffer atual tem um bug de sincronização: quando `activeBuffer` e `currentIndex` mudam no mesmo render, o buffer "entrante" ainda não tem a imagem carregada, causando frames em branco e travamentos. A lógica nas linhas 389-403 é complexa e frágil — buffer 1 mostra `current` ou `nextImage` dependendo de qual buffer está ativo, mas ambos referenciam o mesmo `currentIndex`.
+### Solução: Reload completo da página
 
-### Solução: Crossfade Simples com Dois Layers
+Quando o Realtime detectar mudança em fotos, músicas ou locuções, forçar um `window.location.reload()` ao invés de apenas recarregar dados em memória. Isso garante:
+- Estado 100% limpo
+- Nova lista de mídia carregada do zero
+- Sem conflitos de transição/buffer
+- Comportamento previsível e idêntico ao "F5"
 
-Reescrever o sistema de transição com uma abordagem mais simples e confiável:
+### Detalhes técnicos
+
+**Arquivo: `src/pages/Slideshow.tsx`**
+
+1. **Manter** o debounce de 2s (evita reload em rajada quando vários uploads acontecem juntos)
+2. **Trocar** `loadData()` por `window.location.reload()` no callback do Realtime para as tabelas de conteúdo (`menu_items`, `audio_tracks`, `announcements`, `playlist_tracks`)
+3. **Manter** `loadSettings()` sem reload para `slideshow_settings` (mudanças visuais leves não precisam recarregar tudo)
+4. **Adicionar** um pequeno overlay visual ("Atualizando...") que aparece nos 2 segundos antes do reload, para feedback ao usuário caso esteja olhando para a TV
+5. **Proteção**: salvar timestamp do último reload em `sessionStorage` para evitar loop de reload caso algo dispare repetidamente (mínimo 5s entre reloads)
 
 ```text
-Layer A: imagem atual (opacity 1)
-Layer B: próxima imagem (opacity 0, pré-carregando)
-
-Ao avançar:
-  1. Garantir que Layer B já carregou a imagem
-  2. Fade Layer B para opacity 1
-  3. Após transição CSS acabar, trocar papéis (B vira A)
+Fluxo:
+Upload de imagem no Dashboard
+  → Supabase INSERT em menu_items
+  → Realtime dispara evento na TV
+  → Debounce 2s (caso venham mais)
+  → Mostra overlay "Atualizando..."
+  → window.location.reload()
+  → TV volta com novo conteúdo
 ```
 
-### Mudanças no arquivo `src/pages/Slideshow.tsx`
+### Comportamento esperado
 
-1. **Remover** sistema dual-buffer (`activeBuffer`, `bufferReady`, swap logic)
-2. **Adicionar** dois refs persistentes: `currentUrl` e `nextUrl` (strings, não índices)
-3. **Pré-carregar** a próxima imagem no layer oculto via `<img>` nativo com `onLoad`
-4. **Crossfade** apenas quando `onLoad` da próxima imagem dispara — nunca mostra imagem não carregada
-5. **Transição CSS**: `opacity` com `duration-700 ease-in-out` — suave e sem animações complexas
-6. **Fallback**: se imagem não carrega em 8s, pula para a seguinte
-7. **Simplificar** `renderMedia` — sem keys dinâmicas, sem lógica condicional de buffer
+| Ação no Dashboard | Comportamento na TV |
+|---|---|
+| Adicionar/remover imagem | Reload completo após 2s |
+| Adicionar/remover música | Reload completo após 2s |
+| Adicionar/remover locução | Reload completo após 2s |
+| Reordenar playlist | Reload completo após 2s |
+| Alterar tema/widgets | Atualização suave sem reload |
 
-### Resultado Esperado
-
-- Imagens sempre aparecem já carregadas (nunca flash branco)
-- Transição suave de fade, sem travamentos
-- Código mais simples e fácil de manter
-- Vídeos continuam funcionando normalmente
+### Arquivo modificado
 
 | Arquivo | Mudança |
 |---------|---------|
-| `src/pages/Slideshow.tsx` | Reescrever sistema de transição (crossfade simples) |
+| `src/pages/Slideshow.tsx` | Trocar `loadData()` por `window.location.reload()` no Realtime + overlay visual + proteção contra loop |
 
