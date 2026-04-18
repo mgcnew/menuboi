@@ -318,10 +318,10 @@ const Slideshow = () => {
             supabase.removeChannel(channel);
             channel = supabase
               .channel("slideshow-updates-" + Date.now())
-              .on("postgres_changes", { event: "*", schema: "public", table: "menu_items" }, debouncedReload)
-              .on("postgres_changes", { event: "*", schema: "public", table: "audio_tracks" }, debouncedReload)
-              .on("postgres_changes", { event: "*", schema: "public", table: "announcements" }, debouncedReload)
-              .on("postgres_changes", { event: "*", schema: "public", table: "playlist_tracks" }, debouncedReload)
+              .on("postgres_changes", { event: "*", schema: "public", table: "menu_items" }, triggerFullReload)
+              .on("postgres_changes", { event: "*", schema: "public", table: "audio_tracks" }, triggerFullReload)
+              .on("postgres_changes", { event: "*", schema: "public", table: "announcements" }, triggerFullReload)
+              .on("postgres_changes", { event: "*", schema: "public", table: "playlist_tracks" }, triggerFullReload)
               .on("postgres_changes", { event: "*", schema: "public", table: "slideshow_settings" }, () => {
                 clearTimeout(reloadDebounceRef.current);
                 reloadDebounceRef.current = setTimeout(loadSettings, 500);
