@@ -15,7 +15,7 @@ import { PlaylistManager } from "@/components/PlaylistManager";
 import { SlideshowSettingsCard } from "@/components/SlideshowSettingsCard";
 import { Monitor, Play, Image, Music, Settings, ExternalLink, Sun, Moon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { TransitionType, DEFAULT_DISPLAY_TIME, DEFAULT_TRANSITION_TYPE, AudioTrack, Announcement } from "@/types/slideshow";
+import { TransitionType, DEFAULT_DISPLAY_TIME, DEFAULT_TRANSITION_TYPE, AudioTrack, Announcement, getCurrentDayOfWeek, DAY_OPTIONS } from "@/types/slideshow";
 import { supabase } from "@/integrations/supabase/client";
 import { menuItemsTable, audioTracksTable, announcementsTable } from "@/lib/supabase-helpers";
 import { Badge } from "@/components/ui/badge";
@@ -620,6 +620,12 @@ const Dashboard = () => {
     window.open(slideshowUrl, '_blank');
   };
 
+  const today = getCurrentDayOfWeek();
+  const todayLabel = DAY_OPTIONS.find(d => d.value === today)?.label || today;
+  const playingToday = images.filter(img =>
+    !img.displayDays || img.displayDays.length === 0 || img.displayDays.includes(today)
+  ).length;
+
   return (
     <div className="min-h-screen bg-background">
       {/* Compact Header */}
@@ -630,6 +636,9 @@ const Dashboard = () => {
               <Monitor className="h-6 w-6 text-primary" />
               <h1 className="text-xl font-semibold">Menu Board</h1>
               <div className="hidden sm:flex items-center gap-2">
+                <Badge variant="default" className="font-normal">
+                  Hoje: {todayLabel}
+                </Badge>
                 <Badge variant="secondary" className="font-normal">
                   {images.length} mídia{images.length !== 1 ? 's' : ''}
                 </Badge>
@@ -821,6 +830,10 @@ const Dashboard = () => {
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Mídias</span>
                     <span className="font-medium">{images.length}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Tocando hoje</span>
+                    <span className="font-medium text-primary">{playingToday} de {images.length}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Músicas</span>

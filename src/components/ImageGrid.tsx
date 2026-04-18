@@ -5,7 +5,7 @@ import { Badge } from "./ui/badge";
 import { Trash2, Eye, GripVertical, Settings, Play } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { ImageConfigModal } from "./ImageConfigModal";
-import { DAY_OPTIONS } from "@/types/slideshow";
+import { DAY_OPTIONS, getCurrentDayOfWeek } from "@/types/slideshow";
 
 interface ImageGridProps {
   images: MenuItem[];
@@ -63,16 +63,23 @@ export const ImageGrid = ({ images, onImageDelete, onImageReorder, onImageUpdate
     setDraggedItem(null);
   };
 
+  const today = getCurrentDayOfWeek();
+  const playsToday = (image: MenuItem) =>
+    !image.displayDays || image.displayDays.length === 0 || image.displayDays.includes(today);
+
   return (
     <>
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-        {sortedImages.map((image, index) => (
+        {sortedImages.map((image, index) => {
+          const active = playsToday(image);
+          return (
           <div
             key={image.id}
             className={`
               relative group cursor-move rounded-lg overflow-hidden bg-muted
               aspect-video transition-all duration-200
               ${draggedItem?.id === image.id ? 'opacity-50 scale-95' : 'hover:ring-2 hover:ring-primary/50'}
+              ${!active ? 'opacity-50 grayscale' : ''}
             `}
             draggable
             onDragStart={(e) => handleDragStart(e, image)}
@@ -164,7 +171,8 @@ export const ImageGrid = ({ images, onImageDelete, onImageReorder, onImageUpdate
               <GripVertical className="h-5 w-5 text-white/50" />
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Preview Modal */}

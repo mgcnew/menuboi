@@ -1,17 +1,35 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { MenuItem } from "@/pages/Dashboard";
 import { Play, Pause, SkipBack, SkipForward } from "lucide-react";
 import { Button } from "./ui/button";
+import { getCurrentDayOfWeek, DAY_OPTIONS } from "@/types/slideshow";
 
 interface SlideshowPreviewProps {
   images: MenuItem[];
   className?: string;
 }
 
-export const SlideshowPreview = ({ images, className = "" }: SlideshowPreviewProps) => {
+export const SlideshowPreview = ({ images: allImages, className = "" }: SlideshowPreviewProps) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
+
+  // Filter by current day to match TV behavior
+  const today = getCurrentDayOfWeek();
+  const todayLabel = DAY_OPTIONS.find(d => d.value === today)?.short || today;
+  const images = useMemo(
+    () => allImages.filter(img =>
+      !img.displayDays || img.displayDays.length === 0 || img.displayDays.includes(today)
+    ),
+    [allImages, today]
+  );
+
+  // Reset index if filter shrinks the list
+  useEffect(() => {
+    if (currentIndex >= images.length && images.length > 0) {
+      setCurrentIndex(0);
+    }
+  }, [images.length, currentIndex]);
 
   const currentImage = images[currentIndex];
   const displayTime = currentImage?.displayTime || 10;
@@ -52,11 +70,15 @@ export const SlideshowPreview = ({ images, className = "" }: SlideshowPreviewPro
 
   if (images.length === 0) {
     return (
-      <div className={`bg-muted rounded-lg border-2 border-dashed border-muted-foreground/25 flex items-center justify-center ${className}`}>
-        <div className="text-center text-muted-foreground">
+      <div className={`bg-muted rounded-lg border-2 border-dashed border-muted-foreground/25 flex items-center justify-center aspect-video ${className}`}>
+        <div className="text-center text-muted-foreground p-4">
           <div className="text-4xl mb-2">📺</div>
           <p className="text-sm">Preview do Slideshow</p>
-          <p className="text-xs">Adicione imagens para ver o preview</p>
+          <p className="text-xs">
+            {allImages.length === 0
+              ? "Adicione imagens para ver o preview"
+              : `Nenhuma mídia agendada para hoje (${todayLabel})`}
+          </p>
         </div>
       </div>
     );
@@ -142,7 +164,9 @@ export const SlideshowPreview = ({ images, className = "" }: SlideshowPreviewPro
         </div>
 
         <div className="text-xs text-muted-foreground">
-          Preview
+          {allImages.length !== images.length
+            ? `${images.length}/${allImages.length} • Hoje: ${todayLabel}`
+            : `Preview • ${todayLabel}`}
         </div>
       </div>
     </div>
