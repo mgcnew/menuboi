@@ -139,7 +139,6 @@ export const InfoWidget = memo(({ settings }: InfoWidgetProps) => {
             `}
           >
             {settings.showClock && <ClockWidget />}
-            {settings.showDate && <DateWidget />}
             {settings.showWeather && (
               <WeatherWidget lat={settings.weatherLat} lon={settings.weatherLon} />
             )}
