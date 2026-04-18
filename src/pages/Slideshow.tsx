@@ -341,7 +341,7 @@ const Slideshow = () => {
       clearTimeout(reloadDebounceRef.current);
       clearTimeout(reconnectTimerRef.current);
     };
-  }, [loadData, loadSettings]);
+  }, [loadSettings, triggerFullReload]);
 
   // Mouse controls
   useEffect(() => {
