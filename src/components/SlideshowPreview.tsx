@@ -164,7 +164,9 @@ export const SlideshowPreview = ({ images: allImages, className = "" }: Slidesho
         </div>
 
         <div className="text-xs text-muted-foreground">
-          Preview
+          {allImages.length !== images.length
+            ? `${images.length}/${allImages.length} • Hoje: ${todayLabel}`
+            : `Preview • ${todayLabel}`}
         </div>
       </div>
     </div>
