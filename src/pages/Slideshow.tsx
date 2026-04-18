@@ -429,6 +429,16 @@ const Slideshow = () => {
       <AudioPlayer tracks={audios} announcements={announcements} />
       <InfoWidget settings={settings} />
 
+      {/* Reload overlay - shown briefly before page reload */}
+      {isReloading && (
+        <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center animate-in fade-in duration-200">
+          <div className="flex flex-col items-center gap-4 text-white">
+            <RefreshCw className="h-12 w-12 animate-spin" />
+            <p className="text-2xl font-medium">Atualizando conteúdo...</p>
+          </div>
+        </div>
+      )}
+
       {/* Two-layer crossfade */}
       <div className="absolute inset-0">
         <div
