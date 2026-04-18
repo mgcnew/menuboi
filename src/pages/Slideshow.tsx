@@ -265,25 +265,38 @@ const Slideshow = () => {
 
   // Connection status
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'reconnecting'>('disconnected');
+  const [isReloading, setIsReloading] = useState(false);
   const reconnectAttemptsRef = useRef(0);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
+  // Trigger full page reload with safety throttle
+  const triggerFullReload = useCallback(() => {
+    clearTimeout(reloadDebounceRef.current);
+    reloadDebounceRef.current = setTimeout(() => {
+      const RELOAD_KEY = "slideshow_last_reload";
+      const MIN_GAP_MS = 5000;
+      const last = parseInt(sessionStorage.getItem(RELOAD_KEY) || "0", 10);
+      const now = Date.now();
+      if (now - last < MIN_GAP_MS) {
+        console.log("[Slideshow] Reload skipped (throttled), reloading data instead");
+        loadData();
+        return;
+      }
+      console.log("[Slideshow] Realtime change detected, reloading page...");
+      sessionStorage.setItem(RELOAD_KEY, String(now));
+      setIsReloading(true);
+      setTimeout(() => window.location.reload(), 400);
+    }, 2000);
+  }, [loadData]);
+
   // Real-time updates with auto-reconnect
   useEffect(() => {
-    const debouncedReload = () => {
-      clearTimeout(reloadDebounceRef.current);
-      reloadDebounceRef.current = setTimeout(() => {
-        console.log("[Slideshow] Realtime change detected, reloading...");
-        loadData();
-      }, 2000);
-    };
-
     let channel = supabase
       .channel("slideshow-updates")
-      .on("postgres_changes", { event: "*", schema: "public", table: "menu_items" }, debouncedReload)
-      .on("postgres_changes", { event: "*", schema: "public", table: "audio_tracks" }, debouncedReload)
-      .on("postgres_changes", { event: "*", schema: "public", table: "announcements" }, debouncedReload)
-      .on("postgres_changes", { event: "*", schema: "public", table: "playlist_tracks" }, debouncedReload)
+      .on("postgres_changes", { event: "*", schema: "public", table: "menu_items" }, triggerFullReload)
+      .on("postgres_changes", { event: "*", schema: "public", table: "audio_tracks" }, triggerFullReload)
+      .on("postgres_changes", { event: "*", schema: "public", table: "announcements" }, triggerFullReload)
+      .on("postgres_changes", { event: "*", schema: "public", table: "playlist_tracks" }, triggerFullReload)
       .on("postgres_changes", { event: "*", schema: "public", table: "slideshow_settings" }, () => {
         clearTimeout(reloadDebounceRef.current);
         reloadDebounceRef.current = setTimeout(loadSettings, 500);
