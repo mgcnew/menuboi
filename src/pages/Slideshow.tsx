@@ -51,7 +51,10 @@ const Slideshow = () => {
 
   useEffect(() => { indexRef.current = currentIndex; }, [currentIndex]);
 
-  // Filter images by current day of week
+  // Tick that increments at midnight to force re-filter
+  const [dayTick, setDayTick] = useState(0);
+
+  // Filter images by current day of week (re-runs at midnight via dayTick)
   useEffect(() => {
     const today = getCurrentDayOfWeek();
     const filtered = allImages.filter(img =>
@@ -59,7 +62,24 @@ const Slideshow = () => {
     );
     setImages(filtered);
     setCurrentIndex(prev => filtered.length > 0 ? prev % filtered.length : 0);
-  }, [allImages]);
+  }, [allImages, dayTick]);
+
+  // Schedule re-filter at next midnight (00:00:01)
+  useEffect(() => {
+    const scheduleNext = () => {
+      const now = new Date();
+      const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 1, 0);
+      const ms = next.getTime() - now.getTime();
+      console.log(`[Slideshow] Next day re-filter scheduled in ${Math.round(ms / 1000 / 60)} min`);
+      return setTimeout(() => {
+        console.log("[Slideshow] Midnight reached, re-filtering images for new day");
+        setDayTick(t => t + 1);
+        timer = scheduleNext();
+      }, ms);
+    };
+    let timer = scheduleNext();
+    return () => clearTimeout(timer);
+  }, []);
 
   // Load settings
   const loadSettings = useCallback(async () => {
