@@ -413,3 +413,39 @@
   from { opacity: 1; }
   to { opacity: 0; }
 }
+
+/* ============================================================
+   TV MODE — 10-foot UI for Smart TVs (Fire TV, Android TV, etc)
+   Activated via body.tv-mode class set in index.html or by route.
+   ============================================================ */
+
+body.tv-mode,
+body.tv-mode * {
+  cursor: none !important;
+}
+
+body.tv-mode {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Big visible focus ring for TV viewing distance */
+.tv-focusable {
+  transition: transform 150ms ease-out, box-shadow 150ms ease-out, background-color 150ms ease-out;
+  outline: none !important;
+}
+
+.tv-focusable.tv-focused {
+  transform: scale(1.08);
+  box-shadow:
+    0 0 0 6px hsl(217 91% 60% / 0.9),
+    0 0 40px 10px hsl(217 91% 60% / 0.5),
+    0 25px 50px -12px hsl(0 0% 0% / 0.6);
+  z-index: 10;
+}
+
+/* Hide native focus outlines in TV mode — we draw our own */
+body.tv-mode *:focus,
+body.tv-mode *:focus-visible {
+  outline: none !important;
+}
