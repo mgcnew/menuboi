@@ -445,7 +445,7 @@ const Slideshow = () => {
   };
 
   return (
-    <div className={`min-h-screen ${getThemeClasses(settings.theme)} relative overflow-hidden`}>
+    <div className={`min-h-screen ${getThemeClasses(settings.theme)} relative overflow-hidden`} style={{ cursor: "none" }}>
       <AudioPlayer tracks={audios} announcements={announcements} />
       <InfoWidget settings={settings} />
 

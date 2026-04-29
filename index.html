@@ -42,6 +42,18 @@
 
   <body>
     <div id="root"></div>
+    <script>
+      // Detect Smart TV early so styles apply before React mounts (no cursor flash)
+      (function () {
+        try {
+          var ua = navigator.userAgent || '';
+          var params = new URLSearchParams(window.location.search);
+          var isTV = params.get('tv') === '1' ||
+            /SmartTV|SMART-TV|Tizen|WebOS|BRAVIA|AFT[A-Z]|GoogleTV|Android TV|HbbTV|NetCast|Viera|Roku|AppleTV/i.test(ua);
+          if (isTV) document.body.classList.add('tv-mode');
+        } catch (e) {}
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
