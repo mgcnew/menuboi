@@ -46,7 +46,7 @@ const Welcome = () => {
       />
 
       <div
-        className="flex flex-wrap items-center justify-center"
+        className="flex flex-row items-center justify-center"
         style={{ gap: "clamp(16px, 3vmin, 36px)" }}
       >
         {OPTIONS.map((opt, index) => {
@@ -57,28 +57,41 @@ const Welcome = () => {
               key={opt.id}
               onClick={() => navigate(opt.route)}
               onMouseEnter={() => !tvMode && setFocusedIndex(index)}
-              className={`flex flex-col items-center justify-center rounded-2xl bg-card text-card-foreground transition-transform duration-150 ${
+              className={`relative flex flex-col items-center justify-center rounded-2xl bg-card text-card-foreground transition-all duration-200 ease-out ${
                 isFocused
-                  ? "border-[3px] border-brand scale-[1.03] shadow-[0_8px_24px_-8px_hsl(var(--brand)/0.5)]"
+                  ? "border-[3px] border-brand scale-[1.05] shadow-[0_10px_30px_-8px_hsl(var(--brand)/0.55)]"
                   : "border-[3px] border-border"
               }`}
               style={{
-                width: "clamp(180px, 22vmin, 300px)",
-                height: "clamp(180px, 22vmin, 300px)",
+                width: "clamp(140px, 22vmin, 300px)",
+                height: "clamp(140px, 22vmin, 300px)",
                 gap: "clamp(8px, 1.5vmin, 16px)",
               }}
             >
               <Icon
                 className="text-brand"
                 strokeWidth={2.25}
-                style={{ width: "clamp(40px, 7vmin, 80px)", height: "clamp(40px, 7vmin, 80px)" }}
+                style={{ width: "clamp(36px, 7vmin, 80px)", height: "clamp(36px, 7vmin, 80px)" }}
               />
               <span
                 className="font-semibold tracking-tight"
-                style={{ fontSize: "clamp(16px, 2.2vmin, 26px)" }}
+                style={{ fontSize: "clamp(14px, 2.2vmin, 26px)" }}
               >
                 {opt.title}
               </span>
+
+              {/* Smart-TV style focus indicator bar */}
+              <span
+                aria-hidden
+                className={`absolute left-1/2 -translate-x-1/2 rounded-full bg-brand transition-all duration-200 ease-out ${
+                  isFocused ? "opacity-100" : "opacity-0"
+                }`}
+                style={{
+                  bottom: "clamp(-14px, -1.6vmin, -10px)",
+                  height: "clamp(4px, 0.6vmin, 6px)",
+                  width: isFocused ? "55%" : "0%",
+                }}
+              />
             </button>
           );
         })}

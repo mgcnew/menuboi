@@ -1,58 +1,42 @@
-## Plano: Redesign da tela inicial — Novo Boi João Dias
+## Plano: 3 ajustes finais — Welcome, TV e PWA
 
-### Objetivos
-- **Compactar** os cards (hoje gigantes em TV 1080p / 4K).
-- **Remover** todos os gradientes animados (aurora) e blurs pesados — leve para Smart TV.
-- **Inserir a logo** "Novo Boi João Dias" como identidade.
-- **Paleta inspirada na logo**: vermelho (#C8102E aprox.), branco, fundo claro neutro.
-- **Responsivo de verdade**: usar `clamp()` e `vmin` para escalar bem em TV (1920×1080), notebook e celular sem virar tela enorme.
+### 1. Welcome: navegação estilo Smart TV (mais fluida)
+A lógica de seleção lateral já existe (←/→ alternam entre os 2 cards). Vou melhorar o **feedback visual** pra parecer com Fire TV / Google TV:
 
-### Mudanças
+- Cards **lado a lado sempre** (mesmo em mobile pequeno) — usar `flex-row` em vez de `flex-wrap`.
+- Aumentar levemente o `scale` no foco: `1.05` (era `1.03`).
+- Adicionar uma **barra inferior vermelha** que aparece sob o card focado (indicador clássico de TV).
+- Suavizar a transição: `transition-all duration-200 ease-out` (mais responsivo ao apertar a seta).
+- Remover o hover do mouse na TV (já está via `tvMode`), mas reforçar que clique do mouse no admin/notebook continua funcionando.
 
-**1. Adicionar a logo ao projeto**
-- Copiar `user-uploads://ChatGPT_Image_30_de_mar._de_2026_16_25_27.png` para `src/assets/logo-novo-boi.png`.
-- Importar como ES module em `Welcome.tsx`.
-
-**2. Redesign `src/pages/Welcome.tsx`**
-- Remover: aurora layers, grid overlay, relógio/data no topo, badge "Sistema online", gradientes nos ícones e nos cards.
-- Layout novo (centralizado, vertical, enxuto):
-  ```text
-  ┌─────────────────────────────────┐
-  │                                 │
-  │        [ LOGO NOVO BOI ]        │
-  │                                 │
-  │   ┌──────────┐  ┌──────────┐   │
-  │   │  ▶ TV    │  │  ⚙ Admin │   │
-  │   └──────────┘  └──────────┘   │
-  │                                 │
-  └─────────────────────────────────┘
+### 2. `/tv` inicia direto no slideshow
+- **Reescrever `src/pages/TVStart.tsx`** para apenas redirecionar imediatamente:
+  ```tsx
+  useEffect(() => { navigate("/slideshow", { replace: true }); }, []);
   ```
-- Cards com:
-  - tamanho via `clamp(180px, 22vmin, 320px)` de largura;
-  - fundo branco sólido, borda fina cinza, sombra leve;
-  - foco: borda vermelha 3px + leve `scale(1.03)` (sem blur, sem glow gigante);
-  - ícone simples em vermelho (`#C8102E`), texto preto.
-- Logo dimensionada via `clamp(160px, 28vmin, 420px)`.
-- Manter a navegação por controle remoto (`useRemoteNavigation`) e clique do mouse.
+- Tela mostra "Iniciando..." por uma fração de segundo só.
+- Toda configuração (escolher playlist, etc.) passa a ser feita exclusivamente no Painel Admin.
+- Carrega "todas as músicas" por padrão. Se o admin quiser fixar uma playlist específica, faremos isso em uma próxima iteração via campo nas Settings (não escopo desta tarefa).
 
-**3. Atualizar `src/index.css`**
-- Remover keyframes não usados: `aurora-shift`, `aurora-shift-2`, `pulse-soft`, `float-up`, classes `.launcher-aurora-1/2`, `.launcher-fade-in`, `.launcher-card.is-selected`.
-- Manter apenas `.tv-focusable` (já existe e é usado em outras telas).
-- Adicionar token CSS para a marca:
-  ```css
-  --brand-red: 350 80% 42%;
-  --brand-red-dark: 350 80% 32%;
-  ```
-
-### Resultado esperado
-- Tela inicial limpa, com a logo da marca em destaque.
-- Dois botões compactos lado a lado, fáceis de focar no controle.
-- Sem efeitos pesados — roda fluido no Fire Stick / TV antiga.
-- Escala suave de 1080p até celular sem ficar gigante nem espremido.
+### 3. Remover PWA prompt das TVs (definitivo)
+Em `src/components/PWAInstallPrompt.tsx`, trocar:
+```ts
+if (isSmartTV()) { setIsTV(true); return; }
+```
+por:
+```ts
+if (isSmartTV()) { setIsInstalled(true); return; } // hard-stop
+```
+Isso garante que **nada** renderize em TV — nem o banner, nem qualquer modal de instruções. O early-return `if (isInstalled || !showPrompt) return null;` cobre 100%.
 
 ### Arquivos
 | Arquivo | Mudança |
 |---|---|
-| `src/assets/logo-novo-boi.png` | Novo (copiado do upload) |
-| `src/pages/Welcome.tsx` | Reescrito — layout enxuto + logo |
-| `src/index.css` | Remover animações aurora; adicionar tokens da marca |
+| `src/pages/Welcome.tsx` | Polir foco dos cards (scale 1.05 + barra inferior + flex-row fixo) |
+| `src/pages/TVStart.tsx` | Reduzir a um redirect imediato para `/slideshow` |
+| `src/components/PWAInstallPrompt.tsx` | Hard-stop em TVs (`setIsInstalled(true)`) |
+
+### Resultado
+- Tela inicial com cards realmente parecidos com Smart TV moderna — seta vai e o foco escorrega instantâneo de um pro outro.
+- Ligar a TV / abrir `/tv` cai direto na propaganda, sem tela intermediária.
+- Nenhuma TV vê mais o prompt de "Instalar app".
