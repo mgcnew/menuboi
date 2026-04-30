@@ -129,10 +129,9 @@ export const PWAInstallPrompt = () => {
       return;
     }
 
-    // Smart TVs (Tizen, WebOS, Fire TV, Android TV) cannot install PWAs.
-    // Showing the prompt only causes confusion — silently skip on TV devices.
+    // Smart TVs cannot install PWAs — hard-stop, never render anything.
     if (isSmartTV()) {
-      setIsTV(true);
+      setIsInstalled(true);
       return;
     }
 
