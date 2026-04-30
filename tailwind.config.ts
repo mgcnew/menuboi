@@ -48,6 +48,10 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        brand: {
+          DEFAULT: "hsl(var(--brand))",
+          foreground: "hsl(var(--brand-foreground))",
+        },
         slideshow: {
           bg: "hsl(var(--slideshow-bg))",
           text: "hsl(var(--slideshow-text))",
