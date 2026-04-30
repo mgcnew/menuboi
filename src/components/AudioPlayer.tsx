@@ -91,6 +91,9 @@ export const AudioPlayer = ({ tracks, announcements }: AudioPlayerProps) => {
 
     const url = getUrl(item);
     audio.src = url;
+    // Locução (announcement) toca em volume cheio para destaque;
+    // música fica em volume mais baixo para não competir com a voz.
+    audio.volume = item.type === "announcement" ? 1.0 : 0.45;
     // Use low-priority loading - don't block images
     audio.preload = "auto";
     audio.load();
