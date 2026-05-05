@@ -20,6 +20,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { AudioPreviewControls } from "@/components/AudioPreviewControls";
 
 interface AudioGridProps {
   audios: AudioTrack[];
@@ -105,14 +106,21 @@ const SortableAudio = ({
           </div>
 
           {!selectionMode && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => onDelete(audio.id)}
-              className="text-destructive hover:text-destructive hover:bg-destructive/10"
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
+            <>
+              <AudioPreviewControls
+                bucket="audio-tracks"
+                filePath={audio.url}
+                fileName={audio.name}
+              />
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => onDelete(audio.id)}
+                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </>
           )}
         </div>
       </Card>
