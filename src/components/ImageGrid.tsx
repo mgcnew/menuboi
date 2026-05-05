@@ -2,7 +2,8 @@ import { useState } from "react";
 import { MenuItem } from "@/pages/Dashboard";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
-import { Trash2, Eye, GripVertical, Settings, Play } from "lucide-react";
+import { Trash2, Eye, GripVertical, Settings, Play, Download } from "lucide-react";
+import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { ImageConfigModal } from "./ImageConfigModal";
 import { DAY_OPTIONS, getCurrentDayOfWeek } from "@/types/slideshow";
@@ -61,6 +62,26 @@ export const ImageGrid = ({ images, onImageDelete, onImageReorder, onImageUpdate
 
   const handleDragEnd = () => {
     setDraggedItem(null);
+  };
+
+  const handleDownload = async (image: MenuItem) => {
+    try {
+      const res = await fetch(image.url);
+      if (!res.ok) throw new Error("fetch failed");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const urlExt = image.url.split("?")[0].split(".").pop() || (image.itemType === "video" ? "mp4" : "jpg");
+      a.download = image.name.includes(".") ? image.name : `${image.name}.${urlExt}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(err);
+      toast.error("Erro ao baixar arquivo");
+    }
   };
 
   const today = getCurrentDayOfWeek();
@@ -152,6 +173,17 @@ export const ImageGrid = ({ images, onImageDelete, onImageReorder, onImageUpdate
                 }}
               >
                 <Settings className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant="secondary"
+                size="icon"
+                className="h-7 w-7"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDownload(image);
+                }}
+              >
+                <Download className="h-3.5 w-3.5" />
               </Button>
               <Button
                 variant="destructive"
