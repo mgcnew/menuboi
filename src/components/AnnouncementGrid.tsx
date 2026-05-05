@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { GripVertical, Music, Trash2 } from "lucide-react";
 import { Announcement } from "@/types/slideshow";
+import { AudioPreviewControls } from "@/components/AudioPreviewControls";
 
 interface AnnouncementGridProps {
   announcements: Announcement[];
@@ -58,6 +59,12 @@ const SortableAnnouncementItem = ({
           {new Date(announcement.uploadedAt).toLocaleDateString()}
         </p>
       </div>
+
+      <AudioPreviewControls
+        bucket="announcements"
+        filePath={announcement.url}
+        fileName={announcement.name}
+      />
 
       <Button
         variant="ghost"
