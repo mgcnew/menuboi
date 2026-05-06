@@ -54,7 +54,7 @@ export const AudioPreviewControls = ({ bucket, filePath, fileName }: Props) => {
     e.stopPropagation();
     try {
       setDownloading(true);
-      const { data, error } = await supabase.storage.from(bucket).download(filePath);
+      const { data, error } = await supabase.storage.from(bucket).download(relativePath);
       if (error || !data) throw error;
       const url = URL.createObjectURL(data);
       const a = document.createElement("a");
