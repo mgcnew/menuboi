@@ -78,13 +78,14 @@ export const AudioPreviewControls = ({ bucket, filePath, fileName }: Props) => {
         {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
       </Button>
       <Button
-        variant="ghost"
-        size="icon"
+        variant="outline"
+        size="sm"
         onClick={handleDownload}
         disabled={downloading}
-        title="Baixar"
+        title="Baixar arquivo"
       >
-        <Download className="h-4 w-4" />
+        <Download className="h-4 w-4 mr-1" />
+        {downloading ? "Baixando..." : "Baixar"}
       </Button>
     </div>
   );
