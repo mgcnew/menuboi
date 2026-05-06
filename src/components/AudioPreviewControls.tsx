@@ -15,8 +15,14 @@ export const AudioPreviewControls = ({ bucket, filePath, fileName }: Props) => {
   const [downloading, setDownloading] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(filePath);
-
+  // filePath may be a full public URL or a relative path inside the bucket
+  const isFullUrl = /^https?:\/\//i.test(filePath);
+  const relativePath = isFullUrl
+    ? decodeURIComponent(filePath.split(`/object/public/${bucket}/`)[1] || filePath.split("/").pop() || "")
+    : filePath;
+  const publicUrl = isFullUrl
+    ? filePath
+    : supabase.storage.from(bucket).getPublicUrl(filePath).data.publicUrl;
   useEffect(() => {
     return () => {
       audioRef.current?.pause();
@@ -48,7 +54,7 @@ export const AudioPreviewControls = ({ bucket, filePath, fileName }: Props) => {
     e.stopPropagation();
     try {
       setDownloading(true);
-      const { data, error } = await supabase.storage.from(bucket).download(filePath);
+      const { data, error } = await supabase.storage.from(bucket).download(relativePath);
       if (error || !data) throw error;
       const url = URL.createObjectURL(data);
       const a = document.createElement("a");
