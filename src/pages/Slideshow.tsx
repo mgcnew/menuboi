@@ -447,7 +447,7 @@ const Slideshow = () => {
 
   return (
     <div className={`min-h-screen ${getThemeClasses(settings.theme)} relative overflow-hidden`} style={{ cursor: "none" }}>
-      <AudioPlayer tracks={audios} announcements={announcements} />
+      <AudioPlayer tracks={audios} announcements={announcements} announcementIntervalMinutes={settings.announcementIntervalMinutes} />
       <InfoWidget settings={settings} />
 
       {/* Reload overlay - shown briefly before page reload */}
