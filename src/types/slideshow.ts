@@ -108,6 +108,7 @@ export interface SlideshowSettings {
   logoPosition: WidgetPosition;
   customMessage: string | null;
   customMessagePosition: WidgetPosition;
+  announcementIntervalMinutes: number;
   createdAt: Date;
   updatedAt: Date;
 }
