@@ -101,6 +101,7 @@ const Slideshow = () => {
           logoPosition: (row.logo_position || "top-left") as WidgetPosition,
           customMessage: row.custom_message,
           customMessagePosition: (row.custom_message_position || "bottom-center") as WidgetPosition,
+          announcementIntervalMinutes: row.announcement_interval_minutes ?? 5,
           createdAt: new Date(row.created_at), updatedAt: new Date(row.updated_at),
         });
       }
