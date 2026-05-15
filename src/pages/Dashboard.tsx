@@ -13,6 +13,8 @@ import { AnnouncementUpload } from "@/components/AnnouncementUpload";
 import { AnnouncementGrid } from "@/components/AnnouncementGrid";
 import { PlaylistManager } from "@/components/PlaylistManager";
 import { SlideshowSettingsCard } from "@/components/SlideshowSettingsCard";
+import { ImageSettingsCard } from "@/components/ImageSettingsCard";
+import { AudioSettingsCard } from "@/components/AudioSettingsCard";
 import { Monitor, Play, Image, Music, Settings, ExternalLink, Sun, Moon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { TransitionType, DEFAULT_DISPLAY_TIME, DEFAULT_TRANSITION_TYPE, AudioTrack, Announcement, getCurrentDayOfWeek, DAY_OPTIONS } from "@/types/slideshow";
@@ -766,37 +768,17 @@ const Dashboard = () => {
 
               {/* Settings Tab */}
               <TabsContent value="settings" className="space-y-4 mt-4">
-                {/* Slideshow Appearance Settings */}
+                <ImageSettingsCard
+                  transitionTime={transitionTime}
+                  onTransitionTimeChange={handleTransitionTimeChange}
+                />
+
+                <AudioSettingsCard />
+
                 <SlideshowSettingsCard />
 
-                {/* Other Settings */}
                 <Card className="p-4">
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="transition-time" className="text-sm">
-                        Tempo entre imagens
-                      </Label>
-                      <div className="flex items-center gap-2 mt-2">
-                        <Input
-                          id="transition-time"
-                          type="number"
-                          min="5"
-                          max="60"
-                          value={transitionTime}
-                          onChange={(e) => handleTransitionTimeChange(parseInt(e.target.value))}
-                          className="w-20"
-                        />
-                        <span className="text-sm text-muted-foreground">segundos</span>
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Recomendado: 10-15 segundos
-                      </p>
-                    </div>
-
-                    <div className="pt-4 border-t">
-                      <QRCodeDisplay compact title="Link para TV" />
-                    </div>
-                  </div>
+                  <QRCodeDisplay compact title="Link para TV" />
                 </Card>
 
                 {images.length === 0 && (
