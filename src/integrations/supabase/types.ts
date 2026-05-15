@@ -181,6 +181,7 @@ export type Database = {
       }
       slideshow_settings: {
         Row: {
+          announcement_interval_minutes: number
           created_at: string
           custom_message: string | null
           custom_message_position: string
@@ -198,6 +199,7 @@ export type Database = {
           weather_lon: number | null
         }
         Insert: {
+          announcement_interval_minutes?: number
           created_at?: string
           custom_message?: string | null
           custom_message_position?: string
@@ -215,6 +217,7 @@ export type Database = {
           weather_lon?: number | null
         }
         Update: {
+          announcement_interval_minutes?: number
           created_at?: string
           custom_message?: string | null
           custom_message_position?: string

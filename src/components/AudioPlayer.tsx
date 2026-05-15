@@ -6,6 +6,8 @@ import { supabase } from "@/integrations/supabase/client";
 interface AudioPlayerProps {
   tracks: AudioTrack[];
   announcements: Announcement[];
+  /** Intervalo em minutos entre disparos de locução (padrão 5). */
+  announcementIntervalMinutes?: number;
 }
 
 interface PlaylistItem {
@@ -15,7 +17,10 @@ interface PlaylistItem {
   type: "track" | "announcement";
 }
 
-// Shuffle utility
+const MUSIC_VOLUME = 0.45;        // volume normal da música
+const MUSIC_DUCK_VOLUME = 0.08;   // volume reduzido durante locução
+const FADE_DURATION_MS = 800;     // duração do fade in/out
+
 const shuffle = <T,>(arr: T[]): T[] => {
   const result = [...arr];
   for (let i = result.length - 1; i > 0; i--) {
@@ -25,22 +30,29 @@ const shuffle = <T,>(arr: T[]): T[] => {
   return result;
 };
 
-export const AudioPlayer = ({ tracks, announcements }: AudioPlayerProps) => {
-  const audioRef = useRef<HTMLAudioElement>(null);
+export const AudioPlayer = ({ tracks, announcements, announcementIntervalMinutes = 5 }: AudioPlayerProps) => {
+  const musicRef = useRef<HTMLAudioElement>(null);
+  const announcementRef = useRef<HTMLAudioElement>(null);
   const urlCache = useRef(new Map<string, string>());
-  const playlistRef = useRef<PlaylistItem[]>([]);
-  const indexRef = useRef(0);
-  const isPlayingRef = useRef(false);
+
+  // Música
+  const musicQueueRef = useRef<PlaylistItem[]>([]);
+  const musicIndexRef = useRef(0);
+
+  // Locução
+  const announcementQueueRef = useRef<PlaylistItem[]>([]);
+  const announcementIndexRef = useRef(0);
+  const announcementTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const isPlayingAnnouncementRef = useRef(false);
+  const fadeRafRef = useRef<number>();
 
   const [currentName, setCurrentName] = useState("");
   const [currentPos, setCurrentPos] = useState("0/0");
   const [isMuted, setIsMuted] = useState(false);
   const [showControls, setShowControls] = useState(false);
-  const [hasPlaylist, setHasPlaylist] = useState(false);
-
+  const [hasContent, setHasContent] = useState(false);
   const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
 
-  // Get audio URL with caching
   const getUrl = useCallback((item: PlaylistItem): string => {
     const key = `${item.type}-${item.filePath}`;
     const cached = urlCache.current.get(key);
@@ -51,126 +63,168 @@ export const AudioPlayer = ({ tracks, announcements }: AudioPlayerProps) => {
     return publicUrl;
   }, []);
 
-  // Create interleaved playlist
-  const createPlaylist = useCallback((): PlaylistItem[] => {
+  // Fade suave do volume
+  const fadeVolume = useCallback((audio: HTMLAudioElement, to: number, duration: number) => {
+    if (fadeRafRef.current) cancelAnimationFrame(fadeRafRef.current);
+    const from = audio.volume;
+    const start = performance.now();
+    const step = (now: number) => {
+      const t = Math.min(1, (now - start) / duration);
+      audio.volume = from + (to - from) * t;
+      if (t < 1) fadeRafRef.current = requestAnimationFrame(step);
+    };
+    fadeRafRef.current = requestAnimationFrame(step);
+  }, []);
+
+  // ========== MÚSICA ==========
+  const playMusicIndex = useCallback((index: number) => {
+    const audio = musicRef.current;
+    const queue = musicQueueRef.current;
+    if (!audio || queue.length === 0) return;
+    const idx = ((index % queue.length) + queue.length) % queue.length;
+    musicIndexRef.current = idx;
+    const item = queue[idx];
+    setCurrentName(item.name);
+    setCurrentPos(`${idx + 1}/${queue.length}`);
+    audio.src = getUrl(item);
+    // Se já estamos em ducking, mantém volume baixo
+    audio.volume = isPlayingAnnouncementRef.current ? MUSIC_DUCK_VOLUME : MUSIC_VOLUME;
+    audio.preload = "auto";
+    audio.load();
+    setTimeout(() => {
+      audio.play().catch(() => console.log("[AudioPlayer] Music autoplay blocked"));
+    }, 100);
+  }, [getUrl]);
+
+  const handleMusicEnded = useCallback(() => {
+    const next = musicIndexRef.current + 1;
+    if (next >= musicQueueRef.current.length) {
+      musicQueueRef.current = shuffle(musicQueueRef.current);
+      playMusicIndex(0);
+    } else {
+      playMusicIndex(next);
+    }
+  }, [playMusicIndex]);
+
+  const handleMusicError = useCallback(() => {
+    console.warn("[AudioPlayer] Music error, skipping");
+    setTimeout(() => {
+      const next = musicIndexRef.current + 1;
+      if (musicQueueRef.current.length > 0) {
+        playMusicIndex(next % musicQueueRef.current.length);
+      }
+    }, 500);
+  }, [playMusicIndex]);
+
+  // ========== LOCUÇÃO ==========
+  const playNextAnnouncement = useCallback(() => {
+    const audio = announcementRef.current;
+    const queue = announcementQueueRef.current;
+    const music = musicRef.current;
+    if (!audio || queue.length === 0) return;
+
+    const idx = announcementIndexRef.current % queue.length;
+    const item = queue[idx];
+    announcementIndexRef.current = idx + 1;
+    if (announcementIndexRef.current >= queue.length) {
+      announcementQueueRef.current = shuffle(queue);
+      announcementIndexRef.current = 0;
+    }
+
+    isPlayingAnnouncementRef.current = true;
+    audio.src = getUrl(item);
+    audio.volume = 1.0;
+    audio.load();
+
+    // Duck music
+    if (music) fadeVolume(music, MUSIC_DUCK_VOLUME, FADE_DURATION_MS);
+
+    audio.play().catch((err) => {
+      console.warn("[AudioPlayer] Announcement play failed:", err);
+      // Restaura música e reagenda
+      if (music) fadeVolume(music, MUSIC_VOLUME, FADE_DURATION_MS);
+      isPlayingAnnouncementRef.current = false;
+      scheduleNextAnnouncement();
+    });
+  }, [getUrl, fadeVolume]);
+
+  const scheduleNextAnnouncement = useCallback(() => {
+    if (announcementTimerRef.current) clearTimeout(announcementTimerRef.current);
+    if (announcementQueueRef.current.length === 0) return;
+    const ms = Math.max(1, announcementIntervalMinutes) * 60 * 1000;
+    announcementTimerRef.current = setTimeout(() => {
+      playNextAnnouncement();
+    }, ms);
+  }, [announcementIntervalMinutes, playNextAnnouncement]);
+
+  const handleAnnouncementEnded = useCallback(() => {
+    isPlayingAnnouncementRef.current = false;
+    const music = musicRef.current;
+    if (music) fadeVolume(music, MUSIC_VOLUME, FADE_DURATION_MS);
+    scheduleNextAnnouncement();
+  }, [fadeVolume, scheduleNextAnnouncement]);
+
+  const handleAnnouncementError = useCallback(() => {
+    console.warn("[AudioPlayer] Announcement error, restoring music");
+    isPlayingAnnouncementRef.current = false;
+    const music = musicRef.current;
+    if (music) fadeVolume(music, MUSIC_VOLUME, FADE_DURATION_MS);
+    scheduleNextAnnouncement();
+  }, [fadeVolume, scheduleNextAnnouncement]);
+
+  // ========== Init / re-init ==========
+  useEffect(() => {
+    urlCache.current.clear();
+
     const trackItems: PlaylistItem[] = tracks.map((t) => ({
       id: t.id, name: t.name, filePath: t.url, type: "track",
     }));
-    const announcementItems: PlaylistItem[] = announcements.map((a) => ({
+    const annItems: PlaylistItem[] = announcements.map((a) => ({
       id: a.id, name: a.name, filePath: a.url, type: "announcement",
     }));
 
-    if (trackItems.length === 0 && announcementItems.length === 0) return [];
-    if (trackItems.length === 0) return shuffle(announcementItems);
-    if (announcementItems.length === 0) return shuffle(trackItems);
+    musicQueueRef.current = shuffle(trackItems);
+    musicIndexRef.current = 0;
+    announcementQueueRef.current = shuffle(annItems);
+    announcementIndexRef.current = 0;
 
-    const shuffledTracks = shuffle(trackItems);
-    const shuffledAnnouncements = shuffle(announcementItems);
-    const result: PlaylistItem[] = [];
-    const maxLength = Math.max(shuffledTracks.length, shuffledAnnouncements.length);
+    setHasContent(trackItems.length > 0 || annItems.length > 0);
 
-    for (let i = 0; i < maxLength; i++) {
-      result.push(shuffledAnnouncements[i % shuffledAnnouncements.length]);
-      result.push(shuffledTracks[i % shuffledTracks.length]);
+    if (trackItems.length > 0) {
+      playMusicIndex(0);
     }
-    return result;
-  }, [tracks, announcements]);
+    scheduleNextAnnouncement();
 
-  // Play a specific index without re-rendering
-  const playIndex = useCallback((index: number) => {
-    const audio = audioRef.current;
-    const playlist = playlistRef.current;
-    if (!audio || playlist.length === 0) return;
+    return () => {
+      if (announcementTimerRef.current) clearTimeout(announcementTimerRef.current);
+      if (fadeRafRef.current) cancelAnimationFrame(fadeRafRef.current);
+    };
+  }, [tracks, announcements, playMusicIndex, scheduleNextAnnouncement]);
 
-    const idx = ((index % playlist.length) + playlist.length) % playlist.length;
-    indexRef.current = idx;
-    const item = playlist[idx];
-
-    setCurrentName(item.name);
-    setCurrentPos(`${idx + 1}/${playlist.length}`);
-
-    const url = getUrl(item);
-    audio.src = url;
-    // Locução (announcement) toca em volume cheio para destaque;
-    // música fica em volume mais baixo para não competir com a voz.
-    audio.volume = item.type === "announcement" ? 1.0 : 0.45;
-    // Use low-priority loading - don't block images
-    audio.preload = "auto";
-    audio.load();
-    
-    // Small delay to avoid competing with image loading on the main thread
-    const playTimer = setTimeout(() => {
-      audio.play().catch(() => {
-        // Autoplay blocked - retry once on user interaction
-        console.log("[AudioPlayer] Autoplay blocked, will retry");
-      });
-      isPlayingRef.current = true;
-    }, 100);
-
-    return () => clearTimeout(playTimer);
-  }, [getUrl]);
-
-  // Initialize playlist when tracks/announcements change
-  useEffect(() => {
-    urlCache.current.clear();
-    const newPlaylist = createPlaylist();
-    playlistRef.current = newPlaylist;
-    indexRef.current = 0;
-    setHasPlaylist(newPlaylist.length > 0);
-
-    if (newPlaylist.length > 0) {
-      playIndex(0);
-    }
-  }, [createPlaylist, playIndex]);
-
-  // Handle track end - advance to next
-  const handleEnded = useCallback(() => {
-    const nextIndex = indexRef.current + 1;
-    if (nextIndex >= playlistRef.current.length) {
-      // Regenerate and restart
-      const newPlaylist = createPlaylist();
-      playlistRef.current = newPlaylist;
-      playIndex(0);
-    } else {
-      playIndex(nextIndex);
-    }
-  }, [createPlaylist, playIndex]);
-
-  // Handle load errors - skip to next track
-  const handleError = useCallback(() => {
-    console.warn("[AudioPlayer] Error loading track, skipping:", playlistRef.current[indexRef.current]?.name);
-    const nextIndex = indexRef.current + 1;
-    if (nextIndex < playlistRef.current.length) {
-      // Small delay before skipping to avoid rapid error loops
-      setTimeout(() => playIndex(nextIndex), 500);
-    }
-  }, [playIndex]);
-
-  // Controls
+  // ========== Controles ==========
   const toggleMute = useCallback(() => {
-    if (audioRef.current) {
-      audioRef.current.muted = !audioRef.current.muted;
-      setIsMuted((m) => !m);
-    }
-  }, []);
+    const m = musicRef.current; const a = announcementRef.current;
+    const newMuted = !isMuted;
+    if (m) m.muted = newMuted;
+    if (a) a.muted = newMuted;
+    setIsMuted(newMuted);
+  }, [isMuted]);
 
   const next = useCallback(() => {
-    const nextIndex = indexRef.current + 1;
-    if (nextIndex >= playlistRef.current.length) {
-      const newPlaylist = createPlaylist();
-      playlistRef.current = newPlaylist;
-      playIndex(0);
+    const n = musicIndexRef.current + 1;
+    if (n >= musicQueueRef.current.length) {
+      musicQueueRef.current = shuffle(musicQueueRef.current);
+      playMusicIndex(0);
     } else {
-      playIndex(nextIndex);
+      playMusicIndex(n);
     }
-  }, [createPlaylist, playIndex]);
+  }, [playMusicIndex]);
 
   const prev = useCallback(() => {
-    const prevIndex = indexRef.current > 0 ? indexRef.current - 1 : playlistRef.current.length - 1;
-    playIndex(prevIndex);
-  }, [playIndex]);
+    const p = musicIndexRef.current > 0 ? musicIndexRef.current - 1 : musicQueueRef.current.length - 1;
+    playMusicIndex(p);
+  }, [playMusicIndex]);
 
-  // Mouse controls visibility
   useEffect(() => {
     const handleMove = () => {
       setShowControls(true);
@@ -184,16 +238,12 @@ export const AudioPlayer = ({ tracks, announcements }: AudioPlayerProps) => {
     };
   }, []);
 
-  if (!hasPlaylist) return null;
+  if (!hasContent) return null;
 
   return (
     <>
-      <audio
-        ref={audioRef}
-        onEnded={handleEnded}
-        onError={handleError}
-        preload="auto"
-      />
+      <audio ref={musicRef} onEnded={handleMusicEnded} onError={handleMusicError} preload="auto" />
+      <audio ref={announcementRef} onEnded={handleAnnouncementEnded} onError={handleAnnouncementError} preload="auto" />
 
       <div
         className={`fixed top-4 right-4 z-50 transition-opacity duration-300 ${

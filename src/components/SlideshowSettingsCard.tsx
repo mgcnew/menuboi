@@ -66,6 +66,7 @@ export const SlideshowSettingsCard = () => {
           logoPosition: (row.logo_position || "top-left") as WidgetPosition,
           customMessage: row.custom_message,
           customMessagePosition: (row.custom_message_position || "bottom-center") as WidgetPosition,
+          announcementIntervalMinutes: row.announcement_interval_minutes ?? 5,
           createdAt: new Date(row.created_at),
           updatedAt: new Date(row.updated_at),
         });
@@ -100,6 +101,7 @@ export const SlideshowSettingsCard = () => {
       if (updates.logoPosition !== undefined) dbUpdates.logo_position = updates.logoPosition;
       if (updates.customMessage !== undefined) dbUpdates.custom_message = updates.customMessage;
       if (updates.customMessagePosition !== undefined) dbUpdates.custom_message_position = updates.customMessagePosition;
+      if (updates.announcementIntervalMinutes !== undefined) dbUpdates.announcement_interval_minutes = updates.announcementIntervalMinutes;
 
       const { error } = await slideshowSettingsTable()
         .update(dbUpdates)
@@ -407,6 +409,27 @@ export const SlideshowSettingsCard = () => {
           )}
         </div>
 
+        {/* Audio - Announcement interval */}
+        <div className="space-y-3 pt-4 border-t">
+          <Label htmlFor="announcement-interval" className="text-sm font-medium">
+            Intervalo entre locuções (minutos)
+          </Label>
+          <p className="text-xs text-muted-foreground">
+            A música toca continuamente e abaixa de volume suavemente quando uma locução começa, voltando ao normal ao terminar.
+          </p>
+          <Input
+            id="announcement-interval"
+            type="number"
+            min={1}
+            max={120}
+            value={settings.announcementIntervalMinutes}
+            onChange={(e) =>
+              setSettings({ ...settings, announcementIntervalMinutes: Math.max(1, parseInt(e.target.value) || 1) })
+            }
+            onBlur={() => saveSettings({ announcementIntervalMinutes: settings.announcementIntervalMinutes })}
+            className="max-w-[140px]"
+          />
+        </div>
         {saving && (
           <div className="flex items-center justify-center text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 mr-2 animate-spin" />

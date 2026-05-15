@@ -108,6 +108,7 @@ export interface SlideshowSettings {
   logoPosition: WidgetPosition;
   customMessage: string | null;
   customMessagePosition: WidgetPosition;
+  announcementIntervalMinutes: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -125,4 +126,5 @@ export const DEFAULT_SLIDESHOW_SETTINGS: Omit<SlideshowSettings, 'id' | 'created
   logoPosition: 'top-left',
   customMessage: null,
   customMessagePosition: 'bottom-center',
+  announcementIntervalMinutes: 5,
 };
