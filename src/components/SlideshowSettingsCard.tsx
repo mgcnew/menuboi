@@ -101,6 +101,7 @@ export const SlideshowSettingsCard = () => {
       if (updates.logoPosition !== undefined) dbUpdates.logo_position = updates.logoPosition;
       if (updates.customMessage !== undefined) dbUpdates.custom_message = updates.customMessage;
       if (updates.customMessagePosition !== undefined) dbUpdates.custom_message_position = updates.customMessagePosition;
+      if (updates.announcementIntervalMinutes !== undefined) dbUpdates.announcement_interval_minutes = updates.announcementIntervalMinutes;
 
       const { error } = await slideshowSettingsTable()
         .update(dbUpdates)
