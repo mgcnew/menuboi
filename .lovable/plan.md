@@ -1,42 +1,47 @@
-## Plano: 3 ajustes finais — Welcome, TV e PWA
+# Mudança no comportamento de áudio
 
-### 1. Welcome: navegação estilo Smart TV (mais fluida)
-A lógica de seleção lateral já existe (←/→ alternam entre os 2 cards). Vou melhorar o **feedback visual** pra parecer com Fire TV / Google TV:
+Hoje as faixas de música e locuções tocam alternadas (uma locução, uma música, etc). A nova lógica será:
 
-- Cards **lado a lado sempre** (mesmo em mobile pequeno) — usar `flex-row` em vez de `flex-wrap`.
-- Aumentar levemente o `scale` no foco: `1.05` (era `1.03`).
-- Adicionar uma **barra inferior vermelha** que aparece sob o card focado (indicador clássico de TV).
-- Suavizar a transição: `transition-all duration-200 ease-out` (mais responsivo ao apertar a seta).
-- Remover o hover do mouse na TV (já está via `tvMode`), mas reforçar que clique do mouse no admin/notebook continua funcionando.
+- As **músicas tocam continuamente**, uma após a outra (consecutivo, em shuffle/loop).
+- A cada **X minutos** (configurável no painel), uma **locução** é disparada.
+- Quando a locução começa, o volume da música **reduz suavemente** (fade out parcial / "ducking").
+- Ao terminar a locução, o volume da música **sobe suavemente** de volta ao normal.
+- A música nunca para — ela continua tocando por baixo da locução em volume baixo.
 
-### 2. `/tv` inicia direto no slideshow
-- **Reescrever `src/pages/TVStart.tsx`** para apenas redirecionar imediatamente:
-  ```tsx
-  useEffect(() => { navigate("/slideshow", { replace: true }); }, []);
-  ```
-- Tela mostra "Iniciando..." por uma fração de segundo só.
-- Toda configuração (escolher playlist, etc.) passa a ser feita exclusivamente no Painel Admin.
-- Carrega "todas as músicas" por padrão. Se o admin quiser fixar uma playlist específica, faremos isso em uma próxima iteração via campo nas Settings (não escopo desta tarefa).
+## Comportamento detalhado
 
-### 3. Remover PWA prompt das TVs (definitivo)
-Em `src/components/PWAInstallPrompt.tsx`, trocar:
-```ts
-if (isSmartTV()) { setIsTV(true); return; }
-```
-por:
-```ts
-if (isSmartTV()) { setIsInstalled(true); return; } // hard-stop
-```
-Isso garante que **nada** renderize em TV — nem o banner, nem qualquer modal de instruções. O early-return `if (isInstalled || !showPrompt) return null;` cobre 100%.
+1. Player de música roda em loop infinito (shuffle das tracks).
+2. Um timer dispara a próxima locução a cada `intervaloLocucao` minutos.
+3. Ao disparar:
+   - Música faz fade do volume atual (ex: 0.45) para um volume reduzido (ex: 0.08) ao longo de ~800ms.
+   - Locução começa a tocar em volume cheio (1.0) num segundo elemento `<audio>`.
+4. Ao terminar a locução (evento `ended`):
+   - Música faz fade de 0.08 de volta para 0.45 ao longo de ~800ms.
+   - Timer reinicia para a próxima locução.
+5. Locuções também rodam em ordem (shuffle) sem repetir até esgotar a lista.
 
-### Arquivos
-| Arquivo | Mudança |
-|---|---|
-| `src/pages/Welcome.tsx` | Polir foco dos cards (scale 1.05 + barra inferior + flex-row fixo) |
-| `src/pages/TVStart.tsx` | Reduzir a um redirect imediato para `/slideshow` |
-| `src/components/PWAInstallPrompt.tsx` | Hard-stop em TVs (`setIsInstalled(true)`) |
+## Configuração nova
 
-### Resultado
-- Tela inicial com cards realmente parecidos com Smart TV moderna — seta vai e o foco escorrega instantâneo de um pro outro.
-- Ligar a TV / abrir `/tv` cai direto na propaganda, sem tela intermediária.
-- Nenhuma TV vê mais o prompt de "Instalar app".
+Adicionar no painel de Configurações da Slideshow:
+- **Intervalo entre locuções** (em minutos, ex: 1–60, padrão 5).
+- (Opcional) **Volume da música durante locução** (slider 0–50%, padrão 15%).
+- (Opcional) **Duração do fade** (em ms, padrão 800).
+
+Se quiser, posso manter só o intervalo e deixar fade/volume fixos para simplificar.
+
+## Detalhes técnicos
+
+- Refatorar `src/components/AudioPlayer.tsx`:
+  - Usar **dois elementos `<audio>`**: um para música (`musicRef`), outro para locução (`announcementRef`).
+  - Remover lógica de playlist intercalada em `createPlaylist`; criar duas filas separadas.
+  - Música: ao `ended`, avança para próxima track; ao esgotar, re-shuffle e recomeça.
+  - Locução: disparada por `setInterval` (ou `setTimeout` recursivo) baseado no intervalo configurado.
+  - Função `fadeVolume(audio, from, to, duration)` usando `requestAnimationFrame` para suavidade.
+  - Estado `isDucking` para evitar conflitos se o timer disparar enquanto outra locução ainda toca.
+- Persistência da configuração: adicionar coluna `announcement_interval_minutes` (e opcionalmente `announcement_duck_volume`, `announcement_fade_ms`) na tabela `slideshow_settings` via migração.
+- Atualizar `SlideshowSettings` em `src/types/slideshow.ts`, `DEFAULT_SLIDESHOW_SETTINGS`, e `SlideshowSettingsCard.tsx` com o novo controle (input numérico ou slider).
+- Passar o intervalo como prop para o `AudioPlayer`.
+
+## Pergunta antes de implementar
+
+Quer que eu exponha **apenas o intervalo** (mais simples) ou também os controles de **volume reduzido** e **duração do fade**?
