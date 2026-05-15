@@ -126,4 +126,5 @@ export const DEFAULT_SLIDESHOW_SETTINGS: Omit<SlideshowSettings, 'id' | 'created
   logoPosition: 'top-left',
   customMessage: null,
   customMessagePosition: 'bottom-center',
+  announcementIntervalMinutes: 5,
 };
