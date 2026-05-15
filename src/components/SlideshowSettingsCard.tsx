@@ -430,9 +430,7 @@ export const SlideshowSettingsCard = () => {
             className="max-w-[140px]"
           />
         </div>
-
-
-          <div className="flex items-center justify-center text-sm text-muted-foreground">
+        {saving && (
             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
             Salvando...
           </div>
