@@ -1,26 +1,32 @@
-export type TransitionType = 
+export type TransitionType =
   | 'fade'
+  | 'crossfade'
   | 'slide-left'
-  | 'slide-right' 
+  | 'slide-right'
   | 'slide-up'
   | 'slide-down'
   | 'zoom-in'
   | 'zoom-out'
-  | 'crossfade'
-  | 'push-left'
-  | 'push-right';
+  | 'blur'
+  | 'ken-burns'
+  | 'wipe-left'
+  | 'wipe-right'
+  | 'flip';
 
 export const TRANSITION_OPTIONS: { value: TransitionType; label: string }[] = [
   { value: 'fade', label: 'Fade' },
+  { value: 'crossfade', label: 'Crossfade' },
   { value: 'slide-left', label: 'Deslizar Esquerda' },
   { value: 'slide-right', label: 'Deslizar Direita' },
   { value: 'slide-up', label: 'Deslizar Cima' },
   { value: 'slide-down', label: 'Deslizar Baixo' },
   { value: 'zoom-in', label: 'Zoom In' },
   { value: 'zoom-out', label: 'Zoom Out' },
-  { value: 'crossfade', label: 'Crossfade' },
-  { value: 'push-left', label: 'Push Esquerda' },
-  { value: 'push-right', label: 'Push Direita' },
+  { value: 'blur', label: 'Desfoque' },
+  { value: 'ken-burns', label: 'Ken Burns' },
+  { value: 'wipe-left', label: 'Wipe Esquerda' },
+  { value: 'wipe-right', label: 'Wipe Direita' },
+  { value: 'flip', label: 'Flip' },
 ];
 
 export const DEFAULT_DISPLAY_TIME = 10;

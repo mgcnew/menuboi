@@ -7,6 +7,7 @@ import { menuItemsTable, audioTracksTable, announcementsTable, playlistTracksTab
 import { AudioPlayer } from "@/components/AudioPlayer";
 import { InfoWidget } from "@/components/InfoWidget";
 import { ChevronLeft, ChevronRight, Pause, Play, RefreshCw, Wifi, WifiOff } from "lucide-react";
+import { playTransition, TRANSITION_DURATION_MS } from "@/lib/transitions";
 
 const createDefaultSettings = (): SlideshowSettings => ({
   id: "default",
@@ -48,6 +49,8 @@ const Slideshow = () => {
   const reloadDebounceRef = useRef<ReturnType<typeof setTimeout>>();
   const autoAdvanceRef = useRef<ReturnType<typeof setTimeout>>();
   const fallbackTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const layer0Ref = useRef<HTMLDivElement>(null);
+  const layer1Ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => { indexRef.current = currentIndex; }, [currentIndex]);
 
@@ -236,15 +239,23 @@ const Slideshow = () => {
     if (!transitioningRef.current) return;
     clearTimeout(fallbackTimerRef.current);
     nextLoadedRef.current = true;
-    
-    // Swap layers - the CSS transition handles the fade
-    setActiveLayer(prev => prev === 0 ? 1 : 0);
-    
-    // After the CSS transition completes, mark as done
+
+    // Run the per-image transition animation
+    const nextLayer: 0 | 1 = activeLayer === 0 ? 1 : 0;
+    const incomingEl = nextLayer === 0 ? layer0Ref.current : layer1Ref.current;
+    const outgoingEl = activeLayer === 0 ? layer0Ref.current : layer1Ref.current;
+    const incomingItem = images[layerContent[nextLayer]];
+    const ttype = incomingItem?.transitionType || "fade";
+    playTransition(incomingEl, outgoingEl, ttype);
+
+    // Swap layers (z-index)
+    setActiveLayer(nextLayer);
+
+    // After the transition completes, mark as done
     setTimeout(() => {
       transitioningRef.current = false;
-    }, 750);
-  }, []);
+    }, TRANSITION_DURATION_MS + 50);
+  }, [activeLayer, images, layerContent]);
 
   // Handle image load error on hidden layer
   const handleNextImageError = useCallback(() => {
@@ -460,17 +471,19 @@ const Slideshow = () => {
         </div>
       )}
 
-      {/* Two-layer crossfade */}
+      {/* Two-layer transition stage */}
       <div className="absolute inset-0">
         <div
-          className="absolute inset-0 transition-opacity duration-700 ease-in-out"
-          style={{ opacity: activeLayer === 0 ? 1 : 0, zIndex: activeLayer === 0 ? 2 : 1 }}
+          ref={layer0Ref}
+          className="absolute inset-0"
+          style={{ opacity: activeLayer === 0 ? 1 : 0, zIndex: activeLayer === 0 ? 2 : 1, willChange: "transform, opacity, filter, clip-path" }}
         >
           {renderLayerMedia(0, activeLayer === 0)}
         </div>
         <div
-          className="absolute inset-0 transition-opacity duration-700 ease-in-out"
-          style={{ opacity: activeLayer === 1 ? 1 : 0, zIndex: activeLayer === 1 ? 2 : 1 }}
+          ref={layer1Ref}
+          className="absolute inset-0"
+          style={{ opacity: activeLayer === 1 ? 1 : 0, zIndex: activeLayer === 1 ? 2 : 1, willChange: "transform, opacity, filter, clip-path" }}
         >
           {renderLayerMedia(1, activeLayer === 1)}
         </div>
