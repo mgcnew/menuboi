@@ -245,7 +245,7 @@ const Slideshow = () => {
     const incomingEl = nextLayer === 0 ? layer0Ref.current : layer1Ref.current;
     const outgoingEl = activeLayer === 0 ? layer0Ref.current : layer1Ref.current;
     const incomingItem = images[layerContent[nextLayer]];
-    const ttype = incomingItem?.transitionType || "fade";
+    const ttype = (localStorage.getItem('menuboard-global-transition-type') as any) || "fade";
     playTransition(incomingEl, outgoingEl, ttype);
 
     // Swap layers (z-index)

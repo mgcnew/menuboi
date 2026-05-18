@@ -17,10 +17,24 @@ const Auth = () => {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) navigate("/dashboard", { replace: true });
+      if (session) {
+        const pendingCode = sessionStorage.getItem("pending_tv_code");
+        if (pendingCode) {
+          navigate("/link", { replace: true });
+        } else {
+          navigate("/dashboard", { replace: true });
+        }
+      }
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
-      if (session) navigate("/dashboard", { replace: true });
+      if (session) {
+        const pendingCode = sessionStorage.getItem("pending_tv_code");
+        if (pendingCode) {
+          navigate("/link", { replace: true });
+        } else {
+          navigate("/dashboard", { replace: true });
+        }
+      }
     });
     return () => subscription.unsubscribe();
   }, [navigate]);

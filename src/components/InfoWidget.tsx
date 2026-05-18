@@ -117,25 +117,16 @@ WeatherWidget.displayName = "WeatherWidget";
 export const InfoWidget = memo(({ settings }: InfoWidgetProps) => {
   const showInfoWidget = settings.showClock || settings.showWeather;
 
-  // Don't render anything for minimal theme unless there's a logo or message
-  if (settings.theme === "minimal" && !settings.showLogo && !settings.customMessage) {
-    return null;
-  }
-
   return (
     <>
       {/* Clock/Date/Weather Widget */}
-      {showInfoWidget && settings.theme !== "minimal" && (
+      {showInfoWidget && (
         <div
           className={`absolute ${getPositionClasses("top-right")} z-20`}
         >
           <div
             className={`
-              px-4 py-3 rounded-xl backdrop-blur-md
-              ${settings.theme === "light" 
-                ? "bg-black/70 text-white" 
-                : "bg-white/10 text-white"
-              }
+              px-4 py-3 rounded-xl backdrop-blur-md bg-black/50 text-white
             `}
           >
             {settings.showClock && <ClockWidget />}
@@ -146,31 +137,14 @@ export const InfoWidget = memo(({ settings }: InfoWidgetProps) => {
         </div>
       )}
 
-      {/* Logo */}
-      {settings.showLogo && settings.logoUrl && (
-        <div
-          className={`absolute ${getPositionClasses(settings.logoPosition)} z-20`}
-        >
-          <img
-            src={settings.logoUrl}
-            alt="Logo"
-            className="max-w-[150px] max-h-[80px] object-contain drop-shadow-lg"
-          />
-        </div>
-      )}
-
       {/* Custom Message */}
-      {settings.customMessage && settings.theme !== "minimal" && (
+      {settings.customMessage && (
         <div
           className={`absolute ${getPositionClasses(settings.customMessagePosition)} z-20`}
         >
           <div
             className={`
-              px-6 py-3 rounded-xl backdrop-blur-md text-lg font-medium
-              ${settings.theme === "light" 
-                ? "bg-black/70 text-white" 
-                : "bg-white/10 text-white"
-              }
+              px-6 py-3 rounded-xl backdrop-blur-md text-lg font-medium bg-black/50 text-white
             `}
           >
             {settings.customMessage}

@@ -18,7 +18,6 @@ interface ImageConfigModalProps {
 
 export const ImageConfigModal = ({ image, isOpen, onClose, onSave }: ImageConfigModalProps) => {
   const [displayTime, setDisplayTime] = useState(image?.displayTime || 10);
-  const [transitionType, setTransitionType] = useState<TransitionType>(image?.transitionType || 'fade');
   const [videoAutoplay, setVideoAutoplay] = useState(image?.videoAutoplay !== false);
   const [videoMuted, setVideoMuted] = useState(image?.videoMuted !== false);
   const [videoLoop, setVideoLoop] = useState(image?.videoLoop || false);
@@ -63,7 +62,6 @@ export const ImageConfigModal = ({ image, isOpen, onClose, onSave }: ImageConfig
     onSave({
       ...image,
       displayTime,
-      transitionType,
       videoAutoplay,
       videoMuted,
       videoLoop,
@@ -147,22 +145,7 @@ export const ImageConfigModal = ({ image, isOpen, onClose, onSave }: ImageConfig
             />
           </div>
 
-          {/* Transition Type */}
-          <div className="space-y-2">
-            <Label>Tipo de Transição</Label>
-            <Select value={transitionType} onValueChange={(value: TransitionType) => setTransitionType(value)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {TRANSITION_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+
 
           {/* Video Settings - Only show for videos */}
           {image.itemType === 'video' && (

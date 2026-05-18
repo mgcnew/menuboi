@@ -46,6 +46,7 @@ const Dashboard = () => {
   const [audios, setAudios] = useState<AudioTrack[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [transitionTime, setTransitionTime] = useState(10);
+  const [globalTransitionType, setGlobalTransitionType] = useState<TransitionType>(DEFAULT_TRANSITION_TYPE);
   const [isDark, setIsDark] = useState(() => {
     const saved = localStorage.getItem('menuboard-dark-mode');
     return saved === 'true';
@@ -68,7 +69,7 @@ const Dashboard = () => {
     loadImagesFromSupabase();
     loadAudiosFromSupabase();
     loadAnnouncementsFromSupabase();
-    loadTransitionTimeFromLocalStorage();
+    loadGlobalSettingsFromLocalStorage();
   }, []);
 
   const loadImagesFromSupabase = async () => {
@@ -124,10 +125,14 @@ const Dashboard = () => {
     }
   };
 
-  const loadTransitionTimeFromLocalStorage = () => {
+  const loadGlobalSettingsFromLocalStorage = () => {
     const savedTime = localStorage.getItem('menuboard-transition-time');
     if (savedTime) {
       setTransitionTime(parseInt(savedTime));
+    }
+    const savedTransition = localStorage.getItem('menuboard-global-transition-type');
+    if (savedTransition) {
+      setGlobalTransitionType(savedTransition as TransitionType);
     }
   };
 
@@ -624,6 +629,11 @@ const Dashboard = () => {
     saveToLocalStorage(images, time);
   };
 
+  const handleGlobalTransitionTypeChange = (type: TransitionType) => {
+    setGlobalTransitionType(type);
+    localStorage.setItem('menuboard-global-transition-type', type);
+  };
+
   const openSlideshow = () => {
     const slideshowUrl = `${window.location.origin}/slideshow`;
     window.open(slideshowUrl, '_blank');
@@ -783,31 +793,37 @@ const Dashboard = () => {
               </TabsContent>
 
               {/* Settings Tab */}
-              <TabsContent value="settings" className="space-y-4 mt-4">
-                <ImageSettingsCard
-                  transitionTime={transitionTime}
-                  onTransitionTimeChange={handleTransitionTimeChange}
-                />
-
-                <AudioSettingsCard />
-
-                <SlideshowSettingsCard />
-
-                <Card className="p-4">
-                  <QRCodeDisplay compact title="Link para TV" />
-                </Card>
-
-                {images.length === 0 && (
-                  <Card className="p-4 bg-primary/5 border-primary/20">
-                    <h4 className="font-medium text-sm mb-2">Primeiros Passos</h4>
-                    <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
-                      <li>Faça upload das suas imagens na aba Mídia</li>
-                      <li>Configure o tempo de transição</li>
-                      <li>Clique em "Abrir Slideshow"</li>
-                      <li>Acesse o link na TV</li>
-                    </ol>
-                  </Card>
-                )}
+              <TabsContent value="settings" className="mt-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-6">
+                    <ImageSettingsCard
+                      transitionTime={transitionTime}
+                      onTransitionTimeChange={handleTransitionTimeChange}
+                      globalTransitionType={globalTransitionType}
+                      onGlobalTransitionTypeChange={handleGlobalTransitionTypeChange}
+                    />
+                    <SlideshowSettingsCard />
+                  </div>
+                  
+                  <div className="space-y-6">
+                    <AudioSettingsCard />
+                    <Card className="p-6 bg-card/50 backdrop-blur-sm border-primary/10">
+                      <QRCodeDisplay compact title="Acesse na TV" />
+                    </Card>
+                    
+                    {images.length === 0 && (
+                      <Card className="p-5 bg-primary/5 border-primary/20">
+                        <h4 className="font-semibold text-primary mb-3">Primeiros Passos</h4>
+                        <ol className="text-sm text-muted-foreground space-y-2 list-decimal list-inside">
+                          <li>Faça upload das suas imagens na aba Mídia</li>
+                          <li>Configure o tempo de transição</li>
+                          <li>Clique em "Abrir Slideshow"</li>
+                          <li>Acesse o link na TV</li>
+                        </ol>
+                      </Card>
+                    )}
+                  </div>
+                </div>
               </TabsContent>
             </Tabs>
           </div>

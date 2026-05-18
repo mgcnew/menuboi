@@ -10,6 +10,7 @@ import TVStart from "./pages/TVStart";
 import Slideshow from "./pages/Slideshow";
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
+import LinkTV from "./pages/LinkTV";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { PWAInstallPrompt } from "./components/PWAInstallPrompt";
 
@@ -28,6 +29,7 @@ const App = () => (
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/tv" element={<TVStart />} />
           <Route path="/tv-config" element={<TVPreparation />} />
+          <Route path="/link" element={<LinkTV />} />
           <Route path="/slideshow" element={<Slideshow />} />
           {/* Redirect old routes */}
           <Route path="/tv/fullscreen" element={<Navigate to="/slideshow" replace />} />

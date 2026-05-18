@@ -3,12 +3,22 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Image as ImageIcon } from "lucide-react";
 
+import { TransitionType, TRANSITION_OPTIONS } from "@/types/slideshow";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
 interface ImageSettingsCardProps {
   transitionTime: number;
   onTransitionTimeChange: (time: number) => void;
+  globalTransitionType: TransitionType;
+  onGlobalTransitionTypeChange: (type: TransitionType) => void;
 }
 
-export const ImageSettingsCard = ({ transitionTime, onTransitionTimeChange }: ImageSettingsCardProps) => {
+export const ImageSettingsCard = ({ 
+  transitionTime, 
+  onTransitionTimeChange,
+  globalTransitionType,
+  onGlobalTransitionTypeChange
+}: ImageSettingsCardProps) => {
   return (
     <Card>
       <CardHeader>
@@ -39,6 +49,28 @@ export const ImageSettingsCard = ({ transitionTime, onTransitionTimeChange }: Im
           </div>
           <p className="text-xs text-muted-foreground">
             Recomendado: 10–15 segundos. Vale para imagens estáticas — vídeos seguem sua própria duração.
+          </p>
+        </div>
+
+        <div className="space-y-2 pt-4 border-t">
+          <Label>Efeito de Transição Global</Label>
+          <Select 
+            value={globalTransitionType} 
+            onValueChange={(value: TransitionType) => onGlobalTransitionTypeChange(value)}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {TRANSITION_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            Este efeito será aplicado entre todos os slides (imagens).
           </p>
         </div>
       </CardContent>
