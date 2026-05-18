@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { DndContext, closestCenter, DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -6,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { GripVertical, Music, Trash2 } from "lucide-react";
 import { Announcement } from "@/types/slideshow";
 import { AudioPreviewControls } from "@/components/AudioPreviewControls";
+import { Pagination } from "@/components/Pagination";
 
 interface AnnouncementGridProps {
   announcements: Announcement[];
@@ -78,11 +80,19 @@ const SortableAnnouncementItem = ({
   );
 };
 
-export const AnnouncementGrid = ({ 
-  announcements, 
-  onAnnouncementDelete, 
-  onAnnouncementReorder 
+export const AnnouncementGrid = ({
+  announcements,
+  onAnnouncementDelete,
+  onAnnouncementReorder
 }: AnnouncementGridProps) => {
+  const PAGE_SIZE = 10;
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(announcements.length / PAGE_SIZE));
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+  const paged = announcements.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
 
@@ -114,18 +124,27 @@ export const AnnouncementGrid = ({
   }
 
   return (
-    <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-      <SortableContext items={announcements} strategy={verticalListSortingStrategy}>
-        <div className="space-y-3">
-          {announcements.map((announcement) => (
-            <SortableAnnouncementItem
-              key={announcement.id}
-              announcement={announcement}
-              onDelete={onAnnouncementDelete}
-            />
-          ))}
-        </div>
-      </SortableContext>
-    </DndContext>
+    <div className="space-y-3">
+      <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={paged.map(a => a.id)} strategy={verticalListSortingStrategy}>
+          <div className="space-y-3">
+            {paged.map((announcement) => (
+              <SortableAnnouncementItem
+                key={announcement.id}
+                announcement={announcement}
+                onDelete={onAnnouncementDelete}
+              />
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        totalItems={announcements.length}
+        pageSize={PAGE_SIZE}
+      />
+    </div>
   );
 };

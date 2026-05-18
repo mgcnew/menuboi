@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { Pagination } from "@/components/Pagination";
 import { Music, Trash2, GripVertical, CheckSquare, Square, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -136,6 +137,13 @@ export const AudioGrid = ({
 }: AudioGridProps) => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [selectionMode, setSelectionMode] = useState(false);
+  const PAGE_SIZE = 10;
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(audios.length / PAGE_SIZE));
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+  const pagedAudios = audios.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -249,11 +257,11 @@ export const AudioGrid = ({
         onDragEnd={handleDragEnd}
       >
         <SortableContext
-          items={audios.map((a) => a.id)}
+          items={pagedAudios.map((a) => a.id)}
           strategy={verticalListSortingStrategy}
         >
           <div className="space-y-3">
-            {audios.map((audio) => (
+            {pagedAudios.map((audio) => (
               <SortableAudio
                 key={audio.id}
                 audio={audio}
@@ -266,6 +274,14 @@ export const AudioGrid = ({
           </div>
         </SortableContext>
       </DndContext>
+
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        totalItems={audios.length}
+        pageSize={PAGE_SIZE}
+      />
     </div>
   );
 };
