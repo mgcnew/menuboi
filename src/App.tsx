@@ -9,6 +9,8 @@ import TVPreparation from "./pages/TVPreparation";
 import TVStart from "./pages/TVStart";
 import Slideshow from "./pages/Slideshow";
 import NotFound from "./pages/NotFound";
+import Auth from "./pages/Auth";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 import { PWAInstallPrompt } from "./components/PWAInstallPrompt";
 
 const queryClient = new QueryClient();
@@ -22,7 +24,8 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Welcome />} />
-          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/auth" element={<Auth />} />
+          <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/tv" element={<TVStart />} />
           <Route path="/tv-config" element={<TVPreparation />} />
           <Route path="/slideshow" element={<Slideshow />} />

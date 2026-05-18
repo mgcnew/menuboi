@@ -15,7 +15,8 @@ import { PlaylistManager } from "@/components/PlaylistManager";
 import { SlideshowSettingsCard } from "@/components/SlideshowSettingsCard";
 import { ImageSettingsCard } from "@/components/ImageSettingsCard";
 import { AudioSettingsCard } from "@/components/AudioSettingsCard";
-import { Monitor, Play, Image, Music, Settings, ExternalLink, Sun, Moon } from "lucide-react";
+import { Monitor, Play, Image, Music, Settings, ExternalLink, Sun, Moon, LogOut } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { TransitionType, DEFAULT_DISPLAY_TIME, DEFAULT_TRANSITION_TYPE, AudioTrack, Announcement, getCurrentDayOfWeek, DAY_OPTIONS } from "@/types/slideshow";
 import { supabase } from "@/integrations/supabase/client";
@@ -50,6 +51,12 @@ const Dashboard = () => {
     return saved === 'true';
   });
   const { toast } = useToast();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate("/auth", { replace: true });
+  };
 
   // Apply dark mode class
   useEffect(() => {
@@ -667,6 +674,15 @@ const Dashboard = () => {
               >
                 <Play className="h-4 w-4" />
                 <span className="hidden sm:inline">Abrir Slideshow</span>
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleLogout}
+                className="h-9 w-9"
+                title="Sair"
+              >
+                <LogOut className="h-4 w-4" />
               </Button>
             </div>
           </div>
