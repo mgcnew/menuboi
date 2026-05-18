@@ -115,6 +115,8 @@ export interface SlideshowSettings {
   customMessage: string | null;
   customMessagePosition: WidgetPosition;
   announcementIntervalMinutes: number;
+  musicVolume: number;
+  announcementVolume: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -133,4 +135,6 @@ export const DEFAULT_SLIDESHOW_SETTINGS: Omit<SlideshowSettings, 'id' | 'created
   customMessage: null,
   customMessagePosition: 'bottom-center',
   announcementIntervalMinutes: 5,
+  musicVolume: 0.45,
+  announcementVolume: 1.0,
 };

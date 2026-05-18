@@ -8,6 +8,8 @@ interface AudioPlayerProps {
   announcements: Announcement[];
   /** Intervalo em minutos entre disparos de locução (padrão 5). */
   announcementIntervalMinutes?: number;
+  musicVolume?: number;
+  announcementVolume?: number;
 }
 
 interface PlaylistItem {
@@ -17,8 +19,6 @@ interface PlaylistItem {
   type: "track" | "announcement";
 }
 
-const MUSIC_VOLUME = 0.45;        // volume normal da música
-const MUSIC_DUCK_VOLUME = 0.08;   // volume reduzido durante locução
 const FADE_DURATION_MS = 800;     // duração do fade in/out
 
 const shuffle = <T,>(arr: T[]): T[] => {
@@ -30,7 +30,13 @@ const shuffle = <T,>(arr: T[]): T[] => {
   return result;
 };
 
-export const AudioPlayer = ({ tracks, announcements, announcementIntervalMinutes = 5 }: AudioPlayerProps) => {
+export const AudioPlayer = ({ 
+  tracks, 
+  announcements, 
+  announcementIntervalMinutes = 5,
+  musicVolume = 0.45,
+  announcementVolume = 1.0,
+}: AudioPlayerProps) => {
   const musicRef = useRef<HTMLAudioElement>(null);
   const announcementRef = useRef<HTMLAudioElement>(null);
   const urlCache = useRef(new Map<string, string>());
@@ -88,7 +94,8 @@ export const AudioPlayer = ({ tracks, announcements, announcementIntervalMinutes
     setCurrentPos(`${idx + 1}/${queue.length}`);
     audio.src = getUrl(item);
     // Se já estamos em ducking, mantém volume baixo
-    audio.volume = isPlayingAnnouncementRef.current ? MUSIC_DUCK_VOLUME : MUSIC_VOLUME;
+    const duckVolume = musicVolume * 0.2;
+    audio.volume = isPlayingAnnouncementRef.current ? duckVolume : musicVolume;
     audio.preload = "auto";
     audio.load();
     setTimeout(() => {
@@ -133,16 +140,17 @@ export const AudioPlayer = ({ tracks, announcements, announcementIntervalMinutes
 
     isPlayingAnnouncementRef.current = true;
     audio.src = getUrl(item);
-    audio.volume = 1.0;
+    audio.volume = announcementVolume;
     audio.load();
 
     // Duck music
-    if (music) fadeVolume(music, MUSIC_DUCK_VOLUME, FADE_DURATION_MS);
+    const duckVolume = musicVolume * 0.2;
+    if (music) fadeVolume(music, duckVolume, FADE_DURATION_MS);
 
     audio.play().catch((err) => {
       console.warn("[AudioPlayer] Announcement play failed:", err);
       // Restaura música e reagenda
-      if (music) fadeVolume(music, MUSIC_VOLUME, FADE_DURATION_MS);
+      if (music) fadeVolume(music, musicVolume, FADE_DURATION_MS);
       isPlayingAnnouncementRef.current = false;
       scheduleNextAnnouncement();
     });
@@ -160,7 +168,7 @@ export const AudioPlayer = ({ tracks, announcements, announcementIntervalMinutes
   const handleAnnouncementEnded = useCallback(() => {
     isPlayingAnnouncementRef.current = false;
     const music = musicRef.current;
-    if (music) fadeVolume(music, MUSIC_VOLUME, FADE_DURATION_MS);
+    if (music) fadeVolume(music, musicVolume, FADE_DURATION_MS);
     scheduleNextAnnouncement();
   }, [fadeVolume, scheduleNextAnnouncement]);
 
@@ -168,7 +176,7 @@ export const AudioPlayer = ({ tracks, announcements, announcementIntervalMinutes
     console.warn("[AudioPlayer] Announcement error, restoring music");
     isPlayingAnnouncementRef.current = false;
     const music = musicRef.current;
-    if (music) fadeVolume(music, MUSIC_VOLUME, FADE_DURATION_MS);
+    if (music) fadeVolume(music, musicVolume, FADE_DURATION_MS);
     scheduleNextAnnouncement();
   }, [fadeVolume, scheduleNextAnnouncement]);
 
@@ -200,6 +208,21 @@ export const AudioPlayer = ({ tracks, announcements, announcementIntervalMinutes
       if (fadeRafRef.current) cancelAnimationFrame(fadeRafRef.current);
     };
   }, [tracks, announcements, playMusicIndex, scheduleNextAnnouncement]);
+
+  // Update volume on change
+  useEffect(() => {
+    const m = musicRef.current;
+    if (m && !isPlayingAnnouncementRef.current) {
+      m.volume = musicVolume;
+    }
+  }, [musicVolume]);
+
+  useEffect(() => {
+    const a = announcementRef.current;
+    if (a) {
+      a.volume = announcementVolume;
+    }
+  }, [announcementVolume]);
 
   // ========== Controles ==========
   const toggleMute = useCallback(() => {

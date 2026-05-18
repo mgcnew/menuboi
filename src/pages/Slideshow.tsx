@@ -105,6 +105,8 @@ const Slideshow = () => {
           customMessage: row.custom_message,
           customMessagePosition: (row.custom_message_position || "bottom-center") as WidgetPosition,
           announcementIntervalMinutes: row.announcement_interval_minutes ?? 5,
+          musicVolume: row.music_volume ?? 0.45,
+          announcementVolume: row.announcement_volume ?? 1.0,
           createdAt: new Date(row.created_at), updatedAt: new Date(row.updated_at),
         });
       }
@@ -458,7 +460,13 @@ const Slideshow = () => {
 
   return (
     <div className={`min-h-screen ${getThemeClasses(settings.theme)} relative overflow-hidden`} style={{ cursor: "none" }}>
-      <AudioPlayer tracks={audios} announcements={announcements} announcementIntervalMinutes={settings.announcementIntervalMinutes} />
+      <AudioPlayer 
+        tracks={audios} 
+        announcements={announcements} 
+        announcementIntervalMinutes={settings.announcementIntervalMinutes}
+        musicVolume={settings.musicVolume}
+        announcementVolume={settings.announcementVolume} 
+      />
       <InfoWidget settings={settings} />
 
       {/* Reload overlay - shown briefly before page reload */}
