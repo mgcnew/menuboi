@@ -12,7 +12,6 @@ import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
 import LinkTV from "./pages/LinkTV";
 import { ProtectedRoute } from "./components/ProtectedRoute";
-import { PWAInstallPrompt } from "./components/PWAInstallPrompt";
 
 const queryClient = new QueryClient();
 
@@ -21,7 +20,6 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <PWAInstallPrompt />
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Welcome />} />

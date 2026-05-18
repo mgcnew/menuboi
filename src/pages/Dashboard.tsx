@@ -47,6 +47,7 @@ const Dashboard = () => {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [transitionTime, setTransitionTime] = useState(10);
   const [globalTransitionType, setGlobalTransitionType] = useState<TransitionType>(DEFAULT_TRANSITION_TYPE);
+  const [globalDisplayDays, setGlobalDisplayDays] = useState<string[] | null>(null);
   const [isDark, setIsDark] = useState(() => {
     const saved = localStorage.getItem('menuboard-dark-mode');
     return saved === 'true';
@@ -134,6 +135,14 @@ const Dashboard = () => {
     if (savedTransition) {
       setGlobalTransitionType(savedTransition as TransitionType);
     }
+    const savedDays = localStorage.getItem('menuboard-global-display-days');
+    if (savedDays) {
+      try {
+        setGlobalDisplayDays(JSON.parse(savedDays));
+      } catch (e) {
+        console.error('Error loading saved display days', e);
+      }
+    }
   };
 
   const saveToLocalStorage = (newImages: MenuItem[], newTime?: number) => {
@@ -150,12 +159,13 @@ const Dashboard = () => {
         name: img.name,
         file_path: img.url.split('/').pop(),
         order_index: images.length + index,
-        display_time: DEFAULT_DISPLAY_TIME,
-        transition_type: DEFAULT_TRANSITION_TYPE,
+        display_time: transitionTime,
+        transition_type: globalTransitionType,
         item_type: img.itemType,
         video_autoplay: img.videoAutoplay,
         video_muted: img.videoMuted,
-        video_loop: img.videoLoop
+        video_loop: img.videoLoop,
+        display_days: globalDisplayDays
       }));
 
       const { error } = await menuItemsTable()
@@ -624,14 +634,38 @@ const Dashboard = () => {
     }
   };
 
-  const handleTransitionTimeChange = (time: number) => {
+  const handleTransitionTimeChange = async (time: number) => {
     setTransitionTime(time);
     saveToLocalStorage(images, time);
+    try {
+      await menuItemsTable().update({ display_time: time }).neq('id', '0');
+      // Update local state to reflect DB change immediately
+      setImages(prev => prev.map(img => ({ ...img, displayTime: time })));
+    } catch (error) {
+      console.error('Error updating global transition time in DB:', error);
+    }
   };
 
-  const handleGlobalTransitionTypeChange = (type: TransitionType) => {
+  const handleGlobalTransitionTypeChange = async (type: TransitionType) => {
     setGlobalTransitionType(type);
     localStorage.setItem('menuboard-global-transition-type', type);
+    try {
+      await menuItemsTable().update({ transition_type: type }).neq('id', '0');
+      setImages(prev => prev.map(img => ({ ...img, transitionType: type })));
+    } catch (error) {
+      console.error('Error updating global transition type in DB:', error);
+    }
+  };
+
+  const handleGlobalDisplayDaysChange = async (days: string[] | null) => {
+    setGlobalDisplayDays(days);
+    localStorage.setItem('menuboard-global-display-days', JSON.stringify(days));
+    try {
+      await menuItemsTable().update({ display_days: days }).neq('id', '0');
+      setImages(prev => prev.map(img => ({ ...img, displayDays: days })));
+    } catch (error) {
+      console.error('Error updating global display days in DB:', error);
+    }
   };
 
   const openSlideshow = () => {
@@ -646,15 +680,36 @@ const Dashboard = () => {
   ).length;
 
   return (
-    <div className="min-h-screen bg-background">
+    <Tabs defaultValue="media" className="min-h-screen bg-background flex flex-col">
       {/* Compact Header */}
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-3">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-3">
+                <Monitor className="h-6 w-6 text-primary" />
+                <h1 className="text-xl font-semibold hidden sm:block">Menu Board</h1>
+              </div>
+
+              {/* Tabs moved to Topbar */}
+              <TabsList className="h-10">
+                <TabsTrigger value="media" className="gap-2 px-4">
+                  <Image className="h-4 w-4" />
+                  <span className="hidden sm:inline">Mídia</span>
+                </TabsTrigger>
+                <TabsTrigger value="audio" className="gap-2 px-4">
+                  <Music className="h-4 w-4" />
+                  <span className="hidden sm:inline">Áudio</span>
+                </TabsTrigger>
+                <TabsTrigger value="settings" className="gap-2 px-4">
+                  <Settings className="h-4 w-4" />
+                  <span className="hidden sm:inline">Config</span>
+                </TabsTrigger>
+              </TabsList>
+            </div>
+            
             <div className="flex items-center gap-3">
-              <Monitor className="h-6 w-6 text-primary" />
-              <h1 className="text-xl font-semibold">Menu Board</h1>
-              <div className="hidden sm:flex items-center gap-2">
+              <div className="hidden lg:flex items-center gap-2 mr-2">
                 <Badge variant="default" className="font-normal">
                   Hoje: {todayLabel}
                 </Badge>
@@ -665,9 +720,6 @@ const Dashboard = () => {
                   {audios.length} música{audios.length !== 1 ? 's' : ''}
                 </Badge>
               </div>
-            </div>
-            
-            <div className="flex items-center gap-2">
               <Button
                 variant="ghost"
                 size="icon"
@@ -699,27 +751,10 @@ const Dashboard = () => {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-6">
+      <main className="container mx-auto px-4 py-6 flex-1">
         <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
           {/* Main Content with Tabs */}
-          <div>
-            <Tabs defaultValue="media" className="space-y-4">
-              <TabsList className="grid w-full grid-cols-3 h-11">
-                <TabsTrigger value="media" className="gap-2">
-                  <Image className="h-4 w-4" />
-                  <span className="hidden sm:inline">Mídia</span>
-                </TabsTrigger>
-                <TabsTrigger value="audio" className="gap-2">
-                  <Music className="h-4 w-4" />
-                  <span className="hidden sm:inline">Áudio</span>
-                </TabsTrigger>
-                <TabsTrigger value="settings" className="gap-2">
-                  <Settings className="h-4 w-4" />
-                  <span className="hidden sm:inline">Config</span>
-                </TabsTrigger>
-              </TabsList>
-
-              {/* Media Tab */}
+          <div className="space-y-4">
               <TabsContent value="media" className="space-y-4 mt-4">
                 <ImageUpload onImagesUploaded={handleImagesUploaded} />
                 
@@ -801,6 +836,8 @@ const Dashboard = () => {
                       onTransitionTimeChange={handleTransitionTimeChange}
                       globalTransitionType={globalTransitionType}
                       onGlobalTransitionTypeChange={handleGlobalTransitionTypeChange}
+                      globalDisplayDays={globalDisplayDays}
+                      onGlobalDisplayDaysChange={handleGlobalDisplayDaysChange}
                     />
                     <SlideshowSettingsCard />
                   </div>
@@ -825,7 +862,6 @@ const Dashboard = () => {
                   </div>
                 </div>
               </TabsContent>
-            </Tabs>
           </div>
 
           {/* Sticky Sidebar */}
@@ -877,7 +913,7 @@ const Dashboard = () => {
           </div>
         </div>
       </main>
-    </div>
+    </Tabs>
   );
 };
 
