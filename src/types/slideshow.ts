@@ -117,6 +117,7 @@ export interface SlideshowSettings {
   announcementIntervalMinutes: number;
   musicVolume: number;
   announcementVolume: number;
+  musicDuckVolume: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -137,4 +138,5 @@ export const DEFAULT_SLIDESHOW_SETTINGS: Omit<SlideshowSettings, 'id' | 'created
   announcementIntervalMinutes: 5,
   musicVolume: 0.45,
   announcementVolume: 1.0,
+  musicDuckVolume: 0.08,
 };

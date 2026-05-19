@@ -107,6 +107,7 @@ const Slideshow = () => {
           announcementIntervalMinutes: row.announcement_interval_minutes ?? 5,
           musicVolume: row.music_volume ?? 0.45,
           announcementVolume: row.announcement_volume ?? 1.0,
+          musicDuckVolume: row.music_duck_volume ?? 0.08,
           createdAt: new Date(row.created_at), updatedAt: new Date(row.updated_at),
         });
       }
@@ -465,7 +466,8 @@ const Slideshow = () => {
         announcements={announcements} 
         announcementIntervalMinutes={settings.announcementIntervalMinutes}
         musicVolume={settings.musicVolume}
-        announcementVolume={settings.announcementVolume} 
+        announcementVolume={settings.announcementVolume}
+        musicDuckVolume={settings.musicDuckVolume}
       />
       <InfoWidget settings={settings} />
 

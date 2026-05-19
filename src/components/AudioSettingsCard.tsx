@@ -4,7 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { slideshowSettingsTable } from "@/lib/supabase-helpers";
-import { Music, Loader2, Volume2, Mic } from "lucide-react";
+import { Music, Loader2, Volume2, Mic, VolumeX } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 
 export const AudioSettingsCard = () => {
@@ -12,6 +12,7 @@ export const AudioSettingsCard = () => {
   const [interval, setInterval] = useState<number>(5);
   const [musicVolume, setMusicVolume] = useState<number>(0.45);
   const [announcementVolume, setAnnouncementVolume] = useState<number>(1.0);
+  const [musicDuckVolume, setMusicDuckVolume] = useState<number>(0.08);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
@@ -32,6 +33,7 @@ export const AudioSettingsCard = () => {
         setInterval(row.announcement_interval_minutes ?? 5);
         if (row.music_volume !== undefined && row.music_volume !== null) setMusicVolume(row.music_volume);
         if (row.announcement_volume !== undefined && row.announcement_volume !== null) setAnnouncementVolume(row.announcement_volume);
+        if (row.music_duck_volume !== undefined && row.music_duck_volume !== null) setMusicDuckVolume(row.music_duck_volume);
       }
     } finally {
       setLoading(false);
@@ -42,7 +44,7 @@ export const AudioSettingsCard = () => {
     load();
   }, [load]);
 
-  const persist = async (values: { interval?: number, musicVolume?: number, announcementVolume?: number }) => {
+  const persist = async (values: { interval?: number, musicVolume?: number, announcementVolume?: number, musicDuckVolume?: number }) => {
     if (!settingsId) return;
     setSaving(true);
     
@@ -50,6 +52,7 @@ export const AudioSettingsCard = () => {
     if (values.interval !== undefined) updatePayload.announcement_interval_minutes = values.interval;
     if (values.musicVolume !== undefined) updatePayload.music_volume = values.musicVolume;
     if (values.announcementVolume !== undefined) updatePayload.announcement_volume = values.announcementVolume;
+    if (values.musicDuckVolume !== undefined) updatePayload.music_duck_volume = values.musicDuckVolume;
 
     try {
       const { error } = await slideshowSettingsTable()
@@ -146,6 +149,28 @@ export const AudioSettingsCard = () => {
               disabled={loading}
             />
           </div>
+        </div>
+
+        <div className="space-y-3 pt-4 border-t">
+          <div className="flex items-center justify-between">
+            <Label className="flex items-center gap-2 text-sm font-medium">
+              <VolumeX className="h-4 w-4" />
+              Música durante Locução
+            </Label>
+            <span className="text-sm text-muted-foreground">{Math.round(musicDuckVolume * 100)}%</span>
+          </div>
+          <Slider
+            value={[musicDuckVolume * 100]}
+            min={0}
+            max={100}
+            step={1}
+            onValueChange={(vals) => setMusicDuckVolume(vals[0] / 100)}
+            onValueCommit={(vals) => persist({ musicDuckVolume: vals[0] / 100 })}
+            disabled={loading}
+          />
+          <p className="text-xs text-muted-foreground">
+            Volume da música enquanto uma locução está tocando. Use 0% para silenciar completamente a música durante a locução.
+          </p>
         </div>
 
         {(loading || saving) && (

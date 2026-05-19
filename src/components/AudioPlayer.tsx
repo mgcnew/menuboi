@@ -10,6 +10,7 @@ interface AudioPlayerProps {
   announcementIntervalMinutes?: number;
   musicVolume?: number;
   announcementVolume?: number;
+  musicDuckVolume?: number;
 }
 
 interface PlaylistItem {
@@ -36,6 +37,7 @@ export const AudioPlayer = ({
   announcementIntervalMinutes = 5,
   musicVolume = 0.45,
   announcementVolume = 1.0,
+  musicDuckVolume = 0.08,
 }: AudioPlayerProps) => {
   const musicRef = useRef<HTMLAudioElement>(null);
   const announcementRef = useRef<HTMLAudioElement>(null);
@@ -94,8 +96,7 @@ export const AudioPlayer = ({
     setCurrentPos(`${idx + 1}/${queue.length}`);
     audio.src = getUrl(item);
     // Se já estamos em ducking, mantém volume baixo
-    const duckVolume = musicVolume * 0.2;
-    audio.volume = isPlayingAnnouncementRef.current ? duckVolume : musicVolume;
+    audio.volume = isPlayingAnnouncementRef.current ? musicDuckVolume : musicVolume;
     audio.preload = "auto";
     audio.load();
     setTimeout(() => {
@@ -144,8 +145,7 @@ export const AudioPlayer = ({
     audio.load();
 
     // Duck music
-    const duckVolume = musicVolume * 0.2;
-    if (music) fadeVolume(music, duckVolume, FADE_DURATION_MS);
+    if (music) fadeVolume(music, musicDuckVolume, FADE_DURATION_MS);
 
     audio.play().catch((err) => {
       console.warn("[AudioPlayer] Announcement play failed:", err);
