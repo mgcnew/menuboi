@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Play, Settings } from "lucide-react";
 import { useRemoteNavigation, isSmartTV } from "@/hooks/use-remote-navigation";
+import { supabase } from "@/integrations/supabase/client";
 import logo from "@/assets/logo-novo-boi.png";
 
 type Option = {
@@ -20,6 +21,14 @@ const Welcome = () => {
   const navigate = useNavigate();
   const [focusedIndex, setFocusedIndex] = useState(0);
   const tvMode = useRef(isSmartTV()).current;
+
+  // Auto-redirect: logged-in non-TV users go straight to Dashboard
+  useEffect(() => {
+    if (tvMode) return;
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) navigate("/dashboard", { replace: true });
+    });
+  }, [navigate, tvMode]);
 
   useEffect(() => {
     if (tvMode) document.body.classList.add("tv-mode");
