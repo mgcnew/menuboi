@@ -1,1 +1,10 @@
 project_id = "hqetuukelgurerlfnmqd"
+
+[functions.tv-pair-create]
+verify_jwt = false
+
+[functions.tv-pair-poll]
+verify_jwt = false
+
+[functions.tv-pair-claim]
+verify_jwt = true

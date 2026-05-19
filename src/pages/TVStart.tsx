@@ -10,55 +10,62 @@ const TVStart = () => {
   const [status, setStatus] = useState<"checking" | "pairing" | "success">("checking");
 
   useEffect(() => {
-    // Check if already logged in
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    let cancelled = false;
+    let pollInterval: number | undefined;
+    let pollToken: string | null = null;
+
+    const start = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         navigate("/slideshow", { replace: true });
-      } else {
-        startPairing();
+        return;
       }
-    });
+
+      if (cancelled) return;
+      setStatus("pairing");
+
+      const { data, error } = await supabase.functions.invoke("tv-pair-create");
+      if (error || !data?.code) {
+        console.error("Pairing create error:", error);
+        return;
+      }
+      pollToken = data.poll_token;
+      setPairingCode(data.code);
+
+      pollInterval = window.setInterval(async () => {
+        if (!pollToken) return;
+        const { data: pollData } = await supabase.functions.invoke("tv-pair-poll", {
+          body: { poll_token: pollToken },
+        });
+        if (!pollData) return;
+        if (pollData.status === "claimed" && pollData.access_token && pollData.refresh_token) {
+          window.clearInterval(pollInterval);
+          setStatus("success");
+          const { error: setErr } = await supabase.auth.setSession({
+            access_token: pollData.access_token,
+            refresh_token: pollData.refresh_token,
+          });
+          if (!setErr) {
+            setTimeout(() => navigate("/slideshow", { replace: true }), 1000);
+          } else {
+            console.error("Error setting session:", setErr);
+            setStatus("pairing");
+          }
+        } else if (pollData.status === "expired") {
+          window.clearInterval(pollInterval);
+          // restart pairing
+          start();
+        }
+      }, 2000);
+    };
+
+    start();
+    return () => {
+      cancelled = true;
+      if (pollInterval) window.clearInterval(pollInterval);
+    };
   }, [navigate]);
 
-  const startPairing = () => {
-    setStatus("pairing");
-    // Generate a 6-character alphanumeric code
-    const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-    setPairingCode(code);
-
-    // Subscribe to a unique broadcast channel for this code
-    const channel = supabase.channel(`tv-pair-${code}`);
-    
-    channel
-      .on(
-        "broadcast",
-        { event: "sync-session" },
-        async (payload) => {
-          const { access_token, refresh_token } = payload.payload;
-          if (access_token && refresh_token) {
-            setStatus("success");
-            const { error } = await supabase.auth.setSession({
-              access_token,
-              refresh_token,
-            });
-            
-            if (!error) {
-              setTimeout(() => {
-                navigate("/slideshow", { replace: true });
-              }, 1000);
-            } else {
-              console.error("Error setting session:", error);
-              setStatus("pairing"); // Go back to pairing on error
-            }
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  };
 
   if (status === "checking") {
     return (
