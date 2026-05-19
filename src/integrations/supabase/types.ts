@@ -236,6 +236,39 @@ export type Database = {
         }
         Relationships: []
       }
+      tv_pairings: {
+        Row: {
+          access_token: string | null
+          claimed: boolean
+          code: string
+          created_at: string
+          expires_at: string
+          id: string
+          poll_token: string
+          refresh_token: string | null
+        }
+        Insert: {
+          access_token?: string | null
+          claimed?: boolean
+          code: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          poll_token: string
+          refresh_token?: string | null
+        }
+        Update: {
+          access_token?: string | null
+          claimed?: boolean
+          code?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          poll_token?: string
+          refresh_token?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
