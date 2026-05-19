@@ -182,12 +182,14 @@ export type Database = {
       slideshow_settings: {
         Row: {
           announcement_interval_minutes: number
+          announcement_volume: number | null
           created_at: string
           custom_message: string | null
           custom_message_position: string
           id: string
           logo_position: string
           logo_url: string | null
+          music_volume: number | null
           show_clock: boolean
           show_date: boolean
           show_logo: boolean
@@ -200,12 +202,14 @@ export type Database = {
         }
         Insert: {
           announcement_interval_minutes?: number
+          announcement_volume?: number | null
           created_at?: string
           custom_message?: string | null
           custom_message_position?: string
           id?: string
           logo_position?: string
           logo_url?: string | null
+          music_volume?: number | null
           show_clock?: boolean
           show_date?: boolean
           show_logo?: boolean
@@ -218,12 +222,14 @@ export type Database = {
         }
         Update: {
           announcement_interval_minutes?: number
+          announcement_volume?: number | null
           created_at?: string
           custom_message?: string | null
           custom_message_position?: string
           id?: string
           logo_position?: string
           logo_url?: string | null
+          music_volume?: number | null
           show_clock?: boolean
           show_date?: boolean
           show_logo?: boolean
