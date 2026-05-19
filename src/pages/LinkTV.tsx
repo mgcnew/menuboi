@@ -102,12 +102,7 @@ const LinkTV = () => {
     }
   };
 
-<<<<<<< HEAD
-
-  // If the user scanned a QR code, automatically trigger link once auth is verified
-=======
   // If the user scanned a QR code and is already logged in, automatically trigger link
->>>>>>> cbfb6e3 (feat: simplify auth flow - auto-redirect, inline login on /link, remove tv-config)
   useEffect(() => {
     if (!isCheckingAuth && isLoggedIn && code && searchParams.get("code") && status === "idle") {
       handleLink();
