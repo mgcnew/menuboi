@@ -51,39 +51,33 @@ const LinkTV = () => {
       }
 
       const formattedCode = code.toUpperCase().trim();
-      
-      // Use Supabase Realtime Broadcast to send the token to the TV
-      const channel = supabase.channel(`tv-pair-${formattedCode}`);
-      
-      await channel.subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
-          // Send the session data
-          await channel.send({
-            type: 'broadcast',
-            event: 'sync-session',
-            payload: {
-              access_token: session.access_token,
-              refresh_token: session.refresh_token,
-            },
-          });
-          
-          setStatus("success");
-          toast.success("TV conectada com sucesso!");
-          
-          // Cleanup
-          setTimeout(() => {
-            supabase.removeChannel(channel);
-            navigate("/dashboard");
-          }, 2000);
-        }
+
+      const { data, error } = await supabase.functions.invoke("tv-pair-claim", {
+        body: {
+          code: formattedCode,
+          access_token: session.access_token,
+          refresh_token: session.refresh_token,
+        },
       });
-      
+
+      if (error || !data?.ok) {
+        const msg = data?.error === "code_not_found" ? "Código inválido."
+          : data?.error === "code_expired" ? "Código expirado. Gere um novo na TV."
+          : data?.error === "already_claimed" ? "Código já foi usado."
+          : "Erro ao conectar. Tente novamente.";
+        throw new Error(msg);
+      }
+
+      setStatus("success");
+      toast.success("TV conectada com sucesso!");
+      setTimeout(() => navigate("/dashboard"), 2000);
     } catch (error: any) {
       console.error("Link error:", error);
       toast.error(error.message || "Erro ao conectar. Tente novamente.");
       setStatus("idle");
     }
   };
+
 
   // If the user scanned a QR code, automatically trigger link once auth is verified
   useEffect(() => {
