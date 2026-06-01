@@ -189,6 +189,7 @@ export type Database = {
           id: string
           logo_position: string
           logo_url: string | null
+          music_duck_volume: number | null
           music_volume: number | null
           show_clock: boolean
           show_date: boolean
@@ -209,6 +210,7 @@ export type Database = {
           id?: string
           logo_position?: string
           logo_url?: string | null
+          music_duck_volume?: number | null
           music_volume?: number | null
           show_clock?: boolean
           show_date?: boolean
@@ -229,6 +231,7 @@ export type Database = {
           id?: string
           logo_position?: string
           logo_url?: string | null
+          music_duck_volume?: number | null
           music_volume?: number | null
           show_clock?: boolean
           show_date?: boolean
