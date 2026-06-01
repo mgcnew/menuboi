@@ -304,24 +304,13 @@ const Slideshow = () => {
   const reconnectAttemptsRef = useRef(0);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
-  // Trigger full page reload with safety throttle
+  // Hot-reload data on realtime change (no page refresh)
   const triggerFullReload = useCallback(() => {
     clearTimeout(reloadDebounceRef.current);
     reloadDebounceRef.current = setTimeout(() => {
-      const RELOAD_KEY = "slideshow_last_reload";
-      const MIN_GAP_MS = 5000;
-      const last = parseInt(sessionStorage.getItem(RELOAD_KEY) || "0", 10);
-      const now = Date.now();
-      if (now - last < MIN_GAP_MS) {
-        console.log("[Slideshow] Reload skipped (throttled), reloading data instead");
-        loadData();
-        return;
-      }
-      console.log("[Slideshow] Realtime change detected, reloading page...");
-      sessionStorage.setItem(RELOAD_KEY, String(now));
-      setIsReloading(true);
-      setTimeout(() => window.location.reload(), 400);
-    }, 2000);
+      console.log("[Slideshow] Realtime change detected, refreshing data in-place...");
+      loadData();
+    }, 800);
   }, [loadData]);
 
   // Real-time updates with auto-reconnect
