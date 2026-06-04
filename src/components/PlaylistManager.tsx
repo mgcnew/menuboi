@@ -230,6 +230,7 @@ export const PlaylistManager = ({ onPlaylistSelect, selectedPlaylistId }: Playli
                 className={`p-4 rounded-xl border-0 shadow-sm transition-all ${
                   isSelected ? "ring-2 ring-primary bg-primary/5" : "bg-card/50 backdrop-blur-sm"
                 }`}
+              >
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => onPlaylistSelect?.(isSelected ? null : playlist.id)}
