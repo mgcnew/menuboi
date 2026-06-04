@@ -470,8 +470,11 @@ const Slideshow = () => {
         </div>
       )}
 
-      {/* Two-layer transition stage */}
-      <div className="absolute inset-0">
+      {/* Two-layer transition stage - shrinks when custom message is active to avoid overlap */}
+      <div
+        className="absolute inset-x-0 top-0"
+        style={{ bottom: settings.customMessage ? "64px" : 0 }}
+      >
         <div
           ref={layer0Ref}
           className="absolute inset-0"
@@ -487,6 +490,7 @@ const Slideshow = () => {
           {renderLayerMedia(1, activeLayer === 1)}
         </div>
       </div>
+
 
       {/* Controls */}
       <div className={`absolute inset-0 z-10 transition-opacity duration-300 ${showControls ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
