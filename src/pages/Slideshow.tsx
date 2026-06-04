@@ -520,7 +520,7 @@ const Slideshow = () => {
           </button>
         </div>
 
-        <div className="absolute bottom-8 left-8 text-white">
+        <div className={`absolute ${settings.customMessage ? 'bottom-24' : 'bottom-8'} left-8 text-white transition-all duration-500`}>
           <div className="bg-black/20 backdrop-blur-xl px-6 py-4 rounded-3xl border border-white/10 shadow-2xl">
             <p className="text-2xl font-black tracking-tighter uppercase">{current.name}</p>
             <p className="text-xs font-bold opacity-60 tracking-widest uppercase">{currentIndex + 1} de {images.length}</p>

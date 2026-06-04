@@ -137,17 +137,36 @@ export const InfoWidget = memo(({ settings }: InfoWidgetProps) => {
         </div>
       )}
 
-      {/* Custom Message */}
+      {/* Custom Message Marquee (Ticker) */}
       {settings.customMessage && (
         <div
-          className={`absolute ${getPositionClasses(settings.customMessagePosition)} z-20`}
+          className={`fixed bottom-0 left-0 right-0 z-30 overflow-hidden bg-black/80 backdrop-blur-xl border-t border-white/10 py-4 shadow-[0_-20px_50px_rgba(0,0,0,0.5)]`}
         >
-          <div
-            className={`
-              px-8 py-4 rounded-3xl backdrop-blur-2xl text-2xl font-black bg-black/60 text-white border border-white/20 shadow-2xl tracking-tighter uppercase transition-all animate-in fade-in zoom-in duration-500
-            `}
-          >
-            {settings.customMessage}
+          <div className="flex whitespace-nowrap">
+            <div className="animate-marquee inline-block">
+              <span className="text-3xl font-black text-white px-4 tracking-tighter uppercase italic flex items-center gap-12">
+                {settings.customMessage}
+                <span className="inline-block w-3 h-3 bg-primary rounded-full animate-pulse" />
+                {settings.customMessage}
+                <span className="inline-block w-3 h-3 bg-primary rounded-full animate-pulse" />
+                {settings.customMessage}
+                <span className="inline-block w-3 h-3 bg-primary rounded-full animate-pulse" />
+                {settings.customMessage}
+                <span className="inline-block w-3 h-3 bg-primary rounded-full animate-pulse" />
+              </span>
+            </div>
+            <div className="animate-marquee inline-block" aria-hidden="true">
+              <span className="text-3xl font-black text-white px-4 tracking-tighter uppercase italic flex items-center gap-12">
+                {settings.customMessage}
+                <span className="inline-block w-3 h-3 bg-primary rounded-full animate-pulse" />
+                {settings.customMessage}
+                <span className="inline-block w-3 h-3 bg-primary rounded-full animate-pulse" />
+                {settings.customMessage}
+                <span className="inline-block w-3 h-3 bg-primary rounded-full animate-pulse" />
+                {settings.customMessage}
+                <span className="inline-block w-3 h-3 bg-primary rounded-full animate-pulse" />
+              </span>
+            </div>
           </div>
         </div>
       )}
