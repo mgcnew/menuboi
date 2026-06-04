@@ -77,11 +77,13 @@ export const AudioSettingsCard = () => {
   };
 
   return (
-    <Card>
+    <Card className="border-0 shadow-xl bg-card/70 backdrop-blur-md overflow-hidden rounded-2xl">
       <CardHeader>
         <div className="flex items-center gap-2">
-          <Music className="h-5 w-5 text-primary" />
-          <CardTitle className="text-lg">Música e Locuções</CardTitle>
+          <div className="bg-primary/10 p-2 rounded-lg">
+            <Music className="h-5 w-5 text-primary" />
+          </div>
+          <CardTitle className="text-xl font-bold tracking-tight">Música e Locuções</CardTitle>
         </div>
         <CardDescription>
           A música toca continuamente em loop. A cada intervalo definido, uma locução é reproduzida e o volume da música abaixa suavemente.

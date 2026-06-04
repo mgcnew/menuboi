@@ -70,11 +70,11 @@ export const SlideshowPreview = ({ images: allImages, className = "" }: Slidesho
 
   if (images.length === 0) {
     return (
-      <div className={`bg-muted rounded-lg border-2 border-dashed border-muted-foreground/25 flex items-center justify-center aspect-video ${className}`}>
+      <div className={`bg-muted rounded-xl border-2 border-dashed border-muted-foreground/20 flex items-center justify-center aspect-video ${className}`}>
         <div className="text-center text-muted-foreground p-4">
-          <div className="text-4xl mb-2">📺</div>
-          <p className="text-sm">Preview do Slideshow</p>
-          <p className="text-xs">
+          <div className="text-4xl mb-2 grayscale opacity-20">📺</div>
+          <p className="text-sm font-medium">Preview do Slideshow</p>
+          <p className="text-xs opacity-70">
             {allImages.length === 0
               ? "Adicione imagens para ver o preview"
               : `Nenhuma mídia agendada para hoje (${todayLabel})`}
@@ -85,9 +85,9 @@ export const SlideshowPreview = ({ images: allImages, className = "" }: Slidesho
   }
 
   return (
-    <div className={`bg-card border shadow-soft rounded-lg overflow-hidden ${className}`}>
+    <div className={`bg-card border-0 shadow-lg rounded-xl overflow-hidden ${className}`}>
       {/* Preview Display */}
-      <div className="relative aspect-video bg-slideshow-bg">
+      <div className="relative aspect-video bg-black">
         {currentImage && (
           currentImage.itemType === 'video' ? (
             <video
@@ -108,65 +108,66 @@ export const SlideshowPreview = ({ images: allImages, className = "" }: Slidesho
         )}
         
         {/* Overlay with transition info */}
-        <div className="absolute inset-0 bg-gradient-to-t from-slideshow-overlay/60 to-transparent pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
         
         {/* Image info */}
-        <div className="absolute bottom-2 left-2 text-slideshow-text text-xs">
-          <p className="font-medium">{currentImage?.name}</p>
-          <p className="opacity-75">
+        <div className="absolute bottom-2 left-3 text-white text-[10px]">
+          <p className="font-bold truncate max-w-[150px]">{currentImage?.name}</p>
+          <p className="opacity-70 text-[9px]">
             {currentImage?.transitionType} • {currentImage?.displayTime}s
           </p>
         </div>
 
         {/* Slide counter */}
-        <div className="absolute top-2 right-2 bg-slideshow-overlay/50 text-slideshow-text px-2 py-1 rounded text-xs">
+        <div className="absolute top-2 right-2 bg-black/40 backdrop-blur-md text-white px-2 py-1 rounded-md text-[10px] font-bold">
           {currentIndex + 1}/{images.length}
         </div>
       </div>
 
       {/* Progress Bar */}
-      <div className="h-1 bg-muted">
+      <div className="h-1 bg-muted/30">
         <div 
-          className="h-full bg-primary transition-all duration-100 ease-linear"
+          className="h-full bg-primary transition-all duration-100 ease-linear shadow-[0_0_8px_hsl(var(--primary))]"
           style={{ width: `${progress}%` }}
         />
       </div>
 
       {/* Controls */}
-      <div className="p-3 flex items-center justify-between">
-        <div className="flex items-center space-x-2">
+      <div className="p-4 flex items-center justify-between bg-muted/20">
+        <div className="flex items-center space-x-1.5">
           <Button
-            variant="outline"
-            size="sm"
+            variant="secondary"
+            size="icon"
+            className="h-8 w-8 rounded-full bg-background/50 hover:bg-background shadow-sm"
             onClick={prevSlide}
             disabled={images.length <= 1}
           >
-            <SkipBack className="h-3 w-3" />
+            <SkipBack className="h-3.5 w-3.5" />
           </Button>
           
           <Button
-            variant="outline"
-            size="sm"
+            variant="default"
+            size="icon"
+            className="h-9 w-9 rounded-full shadow-md bg-primary text-primary-foreground hover:scale-105 transition-transform"
             onClick={togglePlayPause}
             disabled={images.length === 0}
           >
-            {isPlaying ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
+            {isPlaying ? <Pause className="h-4 w-4 fill-current" /> : <Play className="h-4 w-4 fill-current" />}
           </Button>
           
           <Button
-            variant="outline"
-            size="sm"
+            variant="secondary"
+            size="icon"
+            className="h-8 w-8 rounded-full bg-background/50 hover:bg-background shadow-sm"
             onClick={nextSlide}
             disabled={images.length <= 1}
           >
-            <SkipForward className="h-3 w-3" />
+            <SkipForward className="h-3.5 w-3.5" />
           </Button>
         </div>
 
-        <div className="text-xs text-muted-foreground">
-          {allImages.length !== images.length
-            ? `${images.length}/${allImages.length} • Hoje: ${todayLabel}`
-            : `Preview • ${todayLabel}`}
+        <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+          {todayLabel}
         </div>
       </div>
     </div>

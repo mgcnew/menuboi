@@ -117,10 +117,10 @@ export const AudioUpload = ({ onAudiosUploaded }: AudioUploadProps) => {
       onDrop={handleDrop}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
-      className={`relative border-2 border-dashed rounded-lg p-12 transition-all ${
+      className={`relative border-2 border-dashed rounded-xl p-12 transition-all cursor-pointer shadow-sm ${
         isDragging 
-          ? 'border-primary bg-accent/50 scale-[1.02]' 
-          : 'border-muted hover:border-primary hover:bg-accent/20'
+          ? 'border-primary bg-primary/5 scale-[0.99] shadow-inner' 
+          : 'border-muted-foreground/20 hover:border-primary/40 hover:bg-primary/5 hover:shadow-md'
       }`}
     >
       <input

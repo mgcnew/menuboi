@@ -407,8 +407,8 @@ const Slideshow = () => {
     return (
       <div className={`min-h-screen ${getThemeClasses(settings.theme)} flex items-center justify-center`}>
         <div className={`text-center ${settings.theme === "light" ? "text-gray-900" : "text-white"}`}>
-          <div className="text-6xl mb-4">📱</div>
-          <h1 className="text-4xl font-bold mb-4">Menu Board Digital</h1>
+          <div className="text-8xl mb-8 animate-bounce opacity-20">📱</div>
+          <h1 className="text-5xl font-black mb-4 tracking-tighter">Menu Board Digital</h1>
           <p className="text-xl opacity-75">Nenhuma imagem para hoje.</p>
           <p className="text-sm opacity-50 mt-2">Dia atual: {getCurrentDayOfWeek()}</p>
         </div>
@@ -462,10 +462,10 @@ const Slideshow = () => {
 
       {/* Reload overlay - shown briefly before page reload */}
       {isReloading && (
-        <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-xl flex items-center justify-center animate-in fade-in duration-300">
           <div className="flex flex-col items-center gap-4 text-white">
             <RefreshCw className="h-12 w-12 animate-spin" />
-            <p className="text-2xl font-medium">Atualizando conteúdo...</p>
+            <p className="text-3xl font-black tracking-tighter uppercase">Atualizando conteúdo...</p>
           </div>
         </div>
       )}
@@ -492,19 +492,19 @@ const Slideshow = () => {
       <div className={`absolute inset-0 z-10 transition-opacity duration-300 ${showControls ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
         <button
           onClick={() => advanceTo((currentIndex - 1 + images.length) % images.length)}
-          className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/50 text-white p-3 rounded-full hover:bg-black/70"
+          className="absolute left-8 top-1/2 -translate-y-1/2 bg-black/20 backdrop-blur-xl text-white p-5 rounded-full hover:bg-black/40 transition-all border border-white/10 active:scale-90"
         >
-          <ChevronLeft className="h-6 w-6" />
+          <ChevronLeft className="h-8 w-8" />
         </button>
         <button
           onClick={() => advanceTo((currentIndex + 1) % images.length)}
-          className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/50 text-white p-3 rounded-full hover:bg-black/70"
+          className="absolute right-8 top-1/2 -translate-y-1/2 bg-black/20 backdrop-blur-xl text-white p-5 rounded-full hover:bg-black/40 transition-all border border-white/10 active:scale-90"
         >
-          <ChevronRight className="h-6 w-6" />
+          <ChevronRight className="h-8 w-8" />
         </button>
 
         <div className="absolute bottom-8 right-8 flex items-center gap-3">
-          <div className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-medium ${
+          <div className={`flex items-center gap-2 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest backdrop-blur-xl border border-white/10 ${
             connectionStatus === 'connected' ? 'bg-green-500/20 text-green-400' :
             connectionStatus === 'reconnecting' ? 'bg-yellow-500/20 text-yellow-400' :
             'bg-red-500/20 text-red-400'
@@ -512,18 +512,18 @@ const Slideshow = () => {
             {connectionStatus === 'connected' ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
             {connectionStatus === 'connected' ? 'Online' : connectionStatus === 'reconnecting' ? 'Reconectando...' : 'Offline'}
           </div>
-          <button onClick={loadData} className="bg-black/50 text-white p-4 rounded-full hover:bg-black/70">
-            <RefreshCw className="h-6 w-6" />
+          <button onClick={loadData} className="bg-black/20 backdrop-blur-xl text-white p-5 rounded-full hover:bg-black/40 transition-all border border-white/10 active:scale-90">
+            <RefreshCw className="h-8 w-8" />
           </button>
-          <button onClick={() => setIsPlaying(p => !p)} className="bg-black/50 text-white p-4 rounded-full hover:bg-black/70">
-            {isPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6" />}
+          <button onClick={() => setIsPlaying(p => !p)} className="bg-black/20 backdrop-blur-xl text-white p-5 rounded-full hover:bg-black/40 transition-all border border-white/10 active:scale-90">
+            {isPlaying ? <Pause className="h-8 w-8 fill-current" /> : <Play className="h-8 w-8 fill-current" />}
           </button>
         </div>
 
         <div className="absolute bottom-8 left-8 text-white">
-          <div className="bg-black/50 px-4 py-3 rounded-lg">
-            <p className="text-lg font-medium">{current.name}</p>
-            <p className="text-sm opacity-75">{currentIndex + 1} de {images.length}</p>
+          <div className="bg-black/20 backdrop-blur-xl px-6 py-4 rounded-3xl border border-white/10 shadow-2xl">
+            <p className="text-2xl font-black tracking-tighter uppercase">{current.name}</p>
+            <p className="text-xs font-bold opacity-60 tracking-widest uppercase">{currentIndex + 1} de {images.length}</p>
           </div>
         </div>
 

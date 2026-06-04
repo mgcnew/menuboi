@@ -227,7 +227,9 @@ export const PlaylistManager = ({ onPlaylistSelect, selectedPlaylistId }: Playli
             return (
               <Card
                 key={playlist.id}
-                className={`p-4 ${isSelected ? "ring-2 ring-primary" : ""}`}
+                className={`p-4 rounded-xl border-0 shadow-sm transition-all ${
+                  isSelected ? "ring-2 ring-primary bg-primary/5" : "bg-card/50 backdrop-blur-sm"
+                }`}
               >
                 <div className="flex items-center gap-3">
                   <button

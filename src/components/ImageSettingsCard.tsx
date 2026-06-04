@@ -55,11 +55,13 @@ export const ImageSettingsCard = ({
     }
   };
   return (
-    <Card>
+    <Card className="border-0 shadow-xl bg-card/70 backdrop-blur-md overflow-hidden rounded-2xl">
       <CardHeader>
         <div className="flex items-center gap-2">
-          <ImageIcon className="h-5 w-5 text-primary" />
-          <CardTitle className="text-lg">Imagens e Vídeos</CardTitle>
+          <div className="bg-primary/10 p-2 rounded-lg">
+            <ImageIcon className="h-5 w-5 text-primary" />
+          </div>
+          <CardTitle className="text-xl font-bold tracking-tight">Imagens e Vídeos</CardTitle>
         </div>
         <CardDescription>
           Controle o ritmo da exibição das mídias no slideshow.

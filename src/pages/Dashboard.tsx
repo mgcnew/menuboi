@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -682,26 +682,28 @@ const Dashboard = () => {
   return (
     <Tabs defaultValue="media" className="min-h-screen bg-background flex flex-col">
       {/* Compact Header */}
-      <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
+      <header className="border-b bg-card/70 backdrop-blur-md sticky top-0 z-50 shadow-sm">
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-3">
-                <Monitor className="h-6 w-6 text-primary" />
-                <h1 className="text-xl font-semibold hidden sm:block">Menu Board</h1>
+                <div className="bg-primary/10 p-2 rounded-lg">
+                  <Monitor className="h-6 w-6 text-primary" />
+                </div>
+                <h1 className="text-xl font-bold tracking-tight hidden sm:block">Menu Board</h1>
               </div>
 
               {/* Tabs moved to Topbar */}
-              <TabsList className="h-10">
-                <TabsTrigger value="media" className="gap-2 px-4">
+              <TabsList className="bg-muted/50 p-1">
+                <TabsTrigger value="media" className="gap-2 px-5 font-semibold">
                   <Image className="h-4 w-4" />
                   <span className="hidden sm:inline">Mídia</span>
                 </TabsTrigger>
-                <TabsTrigger value="audio" className="gap-2 px-4">
+                <TabsTrigger value="audio" className="gap-2 px-5 font-semibold">
                   <Music className="h-4 w-4" />
                   <span className="hidden sm:inline">Áudio</span>
                 </TabsTrigger>
-                <TabsTrigger value="settings" className="gap-2 px-4">
+                <TabsTrigger value="settings" className="gap-2 px-5 font-semibold">
                   <Settings className="h-4 w-4" />
                   <span className="hidden sm:inline">Config</span>
                 </TabsTrigger>
@@ -710,41 +712,35 @@ const Dashboard = () => {
             
             <div className="flex items-center gap-3">
               <div className="hidden lg:flex items-center gap-2 mr-2">
-                <Badge variant="default" className="font-normal">
+                <Badge variant="secondary" className="font-semibold bg-secondary/50 hover:bg-secondary">
                   Hoje: {todayLabel}
-                </Badge>
-                <Badge variant="secondary" className="font-normal">
-                  {images.length} mídia{images.length !== 1 ? 's' : ''}
-                </Badge>
-                <Badge variant="outline" className="font-normal">
-                  {audios.length} música{audios.length !== 1 ? 's' : ''}
                 </Badge>
               </div>
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => setIsDark(d => !d)}
-                className="h-9 w-9"
+                className="h-10 w-10 rounded-full transition-all hover:bg-primary/5 active:scale-90"
               >
-                {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                {isDark ? <Sun className="h-5 w-5 text-yellow-500" /> : <Moon className="h-5 w-5 text-primary" />}
               </Button>
               <Button
                 onClick={openSlideshow}
                 size="sm"
                 disabled={images.length === 0}
-                className="gap-2"
+                className="gap-2 h-10 px-5 bg-primary shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all hover:translate-y-[-1px] active:translate-y-[0px] font-bold"
               >
-                <Play className="h-4 w-4" />
+                <Play className="h-4 w-4 fill-current" />
                 <span className="hidden sm:inline">Abrir Slideshow</span>
               </Button>
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={handleLogout}
-                className="h-9 w-9"
+                className="h-10 w-10 rounded-full transition-all hover:bg-destructive/5 hover:text-destructive active:scale-90"
                 title="Sair"
               >
-                <LogOut className="h-4 w-4" />
+                <LogOut className="h-5 w-5" />
               </Button>
             </div>
           </div>
@@ -866,36 +862,47 @@ const Dashboard = () => {
 
           {/* Sticky Sidebar */}
           <div className="hidden lg:block">
-            <div className="sticky top-20 space-y-4">
+            <div className="sticky top-24 space-y-6">
               {/* Preview */}
-              <Card className="p-4">
-                <h3 className="text-sm font-medium mb-3">Preview</h3>
-                <SlideshowPreview images={images} />
+              <Card className="overflow-hidden border-0 shadow-xl bg-card/80 backdrop-blur-sm">
+                <div className="bg-primary/5 px-4 py-2 border-b border-primary/10">
+                   <h3 className="text-xs font-bold uppercase tracking-wider text-primary">Preview em Tempo Real</h3>
+                </div>
+                <div className="p-4">
+                  <SlideshowPreview images={images} />
+                </div>
               </Card>
 
               {/* Quick Stats */}
-              <Card className="p-4">
-                <h3 className="text-sm font-medium mb-3">Resumo</h3>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Mídias</span>
-                    <span className="font-medium">{images.length}</span>
+              <Card className="p-5 border-0 shadow-lg bg-card/80 backdrop-blur-sm">
+                <h3 className="text-sm font-bold mb-4 flex items-center gap-2">
+                  <div className="w-1.5 h-4 bg-primary rounded-full"></div>
+                  Resumo Geral
+                </h3>
+                <div className="space-y-4 text-sm">
+                  <div className="flex justify-between items-center p-2 rounded-lg bg-muted/30">
+                    <span className="text-muted-foreground flex items-center gap-2">
+                       <Image className="h-3.5 w-3.5" /> Mídias Totais
+                    </span>
+                    <span className="font-bold text-base">{images.length}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Tocando hoje</span>
-                    <span className="font-medium text-primary">{playingToday} de {images.length}</span>
+                  <div className="flex justify-between items-center p-2 rounded-lg bg-primary/5 border border-primary/10">
+                    <span className="text-primary font-medium flex items-center gap-2">
+                       <Play className="h-3.5 w-3.5" /> Tocando Hoje
+                    </span>
+                    <span className="font-bold text-base text-primary">{playingToday}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Músicas</span>
-                    <span className="font-medium">{audios.length}</span>
+                  <div className="flex justify-between items-center p-2 rounded-lg bg-muted/30">
+                    <span className="text-muted-foreground flex items-center gap-2">
+                       <Music className="h-3.5 w-3.5" /> Áudios
+                    </span>
+                    <span className="font-bold text-base">{audios.length}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Locuções</span>
-                    <span className="font-medium">{announcements.length}</span>
-                  </div>
-                  <div className="flex justify-between pt-2 border-t">
-                    <span className="text-muted-foreground">Intervalo</span>
-                    <span className="font-medium">{transitionTime}s</span>
+                  <div className="flex justify-between items-center p-2 rounded-lg bg-muted/30">
+                    <span className="text-muted-foreground flex items-center gap-2">
+                       <Settings className="h-3.5 w-3.5" /> Intervalo
+                    </span>
+                    <span className="font-bold text-base">{transitionTime}s</span>
                   </div>
                 </div>
               </Card>
@@ -903,11 +910,11 @@ const Dashboard = () => {
               {/* Quick Action */}
               <Button
                 onClick={openSlideshow}
-                className="w-full gap-2"
+                className="w-full h-14 gap-3 text-base font-bold shadow-xl shadow-primary/20 hover:shadow-primary/40 transition-all hover:translate-y-[-2px]"
                 disabled={images.length === 0}
               >
-                <ExternalLink className="h-4 w-4" />
-                Abrir na TV
+                <ExternalLink className="h-5 w-5" />
+                Transmitir para TV
               </Button>
             </div>
           </div>

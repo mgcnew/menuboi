@@ -41,7 +41,7 @@ const SortableAnnouncementItem = ({
     <Card
       ref={setNodeRef}
       style={style}
-      className="p-4 flex items-center space-x-4 bg-card hover:bg-accent/5 transition-colors"
+      className="p-4 flex items-center space-x-4 bg-card/50 backdrop-blur-sm border shadow-sm hover:shadow-md hover:bg-card hover:border-primary/30 transition-all rounded-xl"
     >
       <div
         {...attributes}
@@ -51,7 +51,7 @@ const SortableAnnouncementItem = ({
         <GripVertical className="h-5 w-5 text-muted-foreground" />
       </div>
 
-      <div className="flex-shrink-0 w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+      <div className="flex-shrink-0 w-11 h-11 bg-primary/10 rounded-xl flex items-center justify-center shadow-inner">
         <Music className="h-5 w-5 text-primary" />
       </div>
 

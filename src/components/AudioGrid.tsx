@@ -63,8 +63,8 @@ const SortableAudio = ({
   return (
     <div ref={setNodeRef} style={style}>
       <Card
-        className={`p-4 hover:shadow-lg transition-all cursor-pointer ${
-          isSelected ? "ring-2 ring-primary bg-primary/5" : ""
+        className={`p-4 border shadow-sm hover:shadow-md transition-all cursor-pointer rounded-xl ${
+          isSelected ? "ring-2 ring-primary bg-primary/5 border-primary/50 shadow-primary/10" : "bg-card/50 backdrop-blur-sm"
         }`}
         onClick={() => selectionMode && onToggleSelect(audio.id)}
       >
@@ -94,7 +94,7 @@ const SortableAudio = ({
           )}
 
           <div className="flex-shrink-0">
-            <div className="w-12 h-12 rounded-lg bg-accent/50 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shadow-inner">
               <Music className="h-6 w-6 text-primary" />
             </div>
           </div>

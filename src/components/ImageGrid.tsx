@@ -98,17 +98,17 @@ export const ImageGrid = ({ images, onImageDelete, onImageReorder, onImageUpdate
 
   return (
     <>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {sortedImages.map((image, index) => {
           const active = playsToday(image);
           return (
           <div
             key={image.id}
             className={`
-              relative group cursor-move rounded-lg overflow-hidden bg-muted
-              aspect-video transition-all duration-200
-              ${draggedItem?.id === image.id ? 'opacity-50 scale-95' : 'hover:ring-2 hover:ring-primary/50'}
-              ${!active ? 'opacity-50 grayscale' : ''}
+              relative group cursor-move rounded-xl overflow-hidden bg-card border shadow-sm
+              aspect-video transition-all duration-300 ease-out
+              ${draggedItem?.id === image.id ? 'opacity-50 scale-95 ring-4 ring-primary/20' : 'hover:shadow-xl hover:translate-y-[-4px] hover:border-primary/50'}
+              ${!active ? 'opacity-40 grayscale blur-[1px]' : ''}
             `}
             draggable
             onDragStart={(e) => handleDragStart(e, image)}
@@ -159,51 +159,54 @@ export const ImageGrid = ({ images, onImageDelete, onImageReorder, onImageUpdate
             )}
 
             {/* Hover Overlay */}
-            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
-              <Button
-                variant="secondary"
-                size="icon"
-                className="h-7 w-7"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setPreviewImage(image);
-                }}
-              >
-                <Eye className="h-3.5 w-3.5" />
-              </Button>
-              <Button
-                variant="secondary"
-                size="icon"
-                className="h-7 w-7"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setConfigImage(image);
-                }}
-              >
-                <Settings className="h-3.5 w-3.5" />
-              </Button>
-              <Button
-                variant="secondary"
-                size="icon"
-                className="h-7 w-7"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDownload(image);
-                }}
-              >
-                <Download className="h-3.5 w-3.5" />
-              </Button>
-              <Button
-                variant="destructive"
-                size="icon"
-                className="h-7 w-7"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onImageDelete(image.id);
-                }}
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col justify-end p-3">
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <Button
+                  variant="secondary"
+                  size="icon"
+                  className="h-9 w-9 rounded-full bg-white/10 backdrop-blur-md hover:bg-white/20 text-white border-white/20"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setPreviewImage(image);
+                  }}
+                >
+                  <Eye className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="icon"
+                  className="h-9 w-9 rounded-full bg-white/10 backdrop-blur-md hover:bg-white/20 text-white border-white/20"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setConfigImage(image);
+                  }}
+                >
+                  <Settings className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="icon"
+                  className="h-9 w-9 rounded-full bg-white/10 backdrop-blur-md hover:bg-white/20 text-white border-white/20"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDownload(image);
+                  }}
+                >
+                  <Download className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="icon"
+                  className="h-9 w-9 rounded-full shadow-lg"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onImageDelete(image.id);
+                  }}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+              <p className="text-[10px] text-white/70 truncate text-center font-medium">{image.name}</p>
             </div>
 
             {/* Drag Handle */}
