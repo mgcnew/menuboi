@@ -178,7 +178,7 @@ export const SlideshowSettingsCard = () => {
         {/* Custom Message */}
         <div className="space-y-3 pt-4 border-t">
           <Label className="text-sm font-medium flex items-center gap-2">
-            <MessageSquare className="h-4 w-4" /> Mensagem Fixa
+            <MessageSquare className="h-4 w-4" /> Mensagem em Movimento (Rodapé)
           </Label>
           <Input
             value={settings.customMessage || ""}
@@ -187,29 +187,9 @@ export const SlideshowSettingsCard = () => {
             placeholder="Ex: Oferta especial: 20% de desconto!"
             className="w-full bg-background/50 border-muted-foreground/20 focus:border-primary/50 transition-all rounded-xl"
           />
-
-          {settings.customMessage && (
-            <div className="pt-2">
-              <Label htmlFor="message-position" className="text-xs text-muted-foreground mb-2 flex items-center gap-1.5">
-                <Layout className="h-3 w-3" /> Posição na tela
-              </Label>
-              <Select
-                value={settings.customMessagePosition}
-                onValueChange={(value) => saveSettings({ customMessagePosition: value as WidgetPosition })}
-              >
-                <SelectTrigger id="message-position" className="w-full bg-background/50 border-muted-foreground/20 rounded-xl">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {POSITION_OPTIONS.map((pos) => (
-                    <SelectItem key={pos.value} value={pos.value}>
-                      {pos.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
+          <p className="text-[10px] text-muted-foreground italic">
+            * A mensagem aparecerá como um letreiro deslizante na parte inferior da tela.
+          </p>
         </div>
 
         {saving && (
