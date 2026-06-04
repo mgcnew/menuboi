@@ -470,8 +470,11 @@ const Slideshow = () => {
         </div>
       )}
 
-      {/* Two-layer transition stage */}
-      <div className="absolute inset-0">
+      {/* Two-layer transition stage - shrinks when custom message is active to avoid overlap */}
+      <div
+        className="absolute inset-x-0 top-0"
+        style={{ bottom: settings.customMessage ? "64px" : 0 }}
+      >
         <div
           ref={layer0Ref}
           className="absolute inset-0"
@@ -487,6 +490,7 @@ const Slideshow = () => {
           {renderLayerMedia(1, activeLayer === 1)}
         </div>
       </div>
+
 
       {/* Controls */}
       <div className={`absolute inset-0 z-10 transition-opacity duration-300 ${showControls ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
@@ -520,7 +524,7 @@ const Slideshow = () => {
           </button>
         </div>
 
-        <div className={`absolute ${settings.customMessage ? 'bottom-24' : 'bottom-8'} left-8 text-white transition-all duration-500`}>
+        <div className={`absolute ${settings.customMessage ? 'bottom-20' : 'bottom-8'} left-8 text-white transition-all duration-500`}>
           <div className="bg-black/20 backdrop-blur-xl px-6 py-4 rounded-3xl border border-white/10 shadow-2xl">
             <p className="text-2xl font-black tracking-tighter uppercase">{current.name}</p>
             <p className="text-xs font-bold opacity-60 tracking-widest uppercase">{currentIndex + 1} de {images.length}</p>
@@ -528,7 +532,7 @@ const Slideshow = () => {
         </div>
 
         {images.length <= 15 && (
-          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-2">
+          <div className={`absolute ${settings.customMessage ? 'bottom-20' : 'bottom-8'} left-1/2 -translate-x-1/2 flex gap-2`}>
             {images.map((_, i) => (
               <button
                 key={i}
@@ -538,6 +542,7 @@ const Slideshow = () => {
             ))}
           </div>
         )}
+
       </div>
     </div>
   );
