@@ -423,12 +423,14 @@ const Slideshow = () => {
     const item = images[imgIndex];
     if (!item) return null;
 
+    const fitClass = settings.customMessage ? "object-contain" : "object-cover";
+
     if (item.itemType === "video") {
       return (
         <video
           key={`video-${item.id}`}
           src={item.url}
-          className="w-full h-full object-cover"
+          className={`w-full h-full ${fitClass} bg-black`}
           autoPlay muted loop={item.videoLoop} playsInline
         />
       );
@@ -439,13 +441,14 @@ const Slideshow = () => {
         key={`img-${layerIdx}-${item.id}`}
         src={item.url}
         alt={item.name}
-        className="w-full h-full object-cover"
+        className={`w-full h-full ${fitClass} bg-black`}
         loading="eager"
         decoding="async"
         onLoad={!isActive ? handleNextImageLoaded : undefined}
         onError={!isActive ? handleNextImageError : undefined}
       />
     );
+
   };
 
   return (
