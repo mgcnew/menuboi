@@ -7,46 +7,46 @@
 @layer base {
   :root {
     /* Base Colors - Clean Dashboard Theme */
-    --background: 0 0% 100%;
-    --foreground: 215 27.9% 16.9%;
+    --background: 210 20% 98%;
+    --foreground: 224 71% 4%;
 
     /* Brand — Novo Boi João Dias */
-    --brand: 350 80% 42%;
+    --brand: 350 80% 45%;
     --brand-foreground: 0 0% 100%;
 
     /* Card System */
     --card: 0 0% 100%;
-    --card-foreground: 215 27.9% 16.9%;
+    --card-foreground: 224 71% 4%;
 
     /* Interactive Elements */
     --popover: 0 0% 100%;
-    --popover-foreground: 215 27.9% 16.9%;
+    --popover-foreground: 224 71% 4%;
 
     /* Brand Colors - Professional Blue */
-    --primary: 217 91% 60%;
-    --primary-foreground: 0 0% 100%;
-    --primary-hover: 217 91% 55%;
+    --primary: 221 83% 53%;
+    --primary-foreground: 210 20% 98%;
+    --primary-hover: 221 83% 48%;
 
     /* Secondary Actions */
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 215 27.9% 16.9%;
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 224 71% 4%;
 
     /* Muted Elements */
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 46%;
 
     /* Accent for Highlights */
-    --accent: 48 100% 67%;
-    --accent-foreground: 215 27.9% 16.9%;
+    --accent: 220 14% 96%;
+    --accent-foreground: 224 71% 4%;
 
     /* Destructive Actions */
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 20% 98%;
 
     /* Form Elements */
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 217 91% 60%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 221 83% 53%;
 
     /* Slideshow Themes */
     --slideshow-bg-dark: 0 0% 0%;
@@ -61,37 +61,30 @@
     --widget-blur: 12px;
 
     /* Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(217 91% 60%), hsl(217 91% 55%));
+    --gradient-primary: linear-gradient(135deg, hsl(221 83% 53%), hsl(221 83% 43%));
     --gradient-accent: linear-gradient(135deg, hsl(48 100% 67%), hsl(45 100% 60%));
-    --gradient-dark: linear-gradient(135deg, hsl(0 0% 8%), hsl(0 0% 12%));
+    --gradient-dark: linear-gradient(135deg, hsl(224 71% 4%), hsl(224 71% 8%));
 
     /* Shadows */
-    --shadow-soft: 0 4px 6px -1px hsl(0 0% 0% / 0.1);
-    --shadow-medium: 0 10px 15px -3px hsl(0 0% 0% / 0.1);
-    --shadow-strong: 0 25px 50px -12px hsl(0 0% 0% / 0.25);
+    --shadow-soft: 0 2px 4px 0 hsl(0 0% 0% / 0.05);
+    --shadow-medium: 0 4px 6px -1px hsl(0 0% 0% / 0.1), 0 2px 4px -1px hsl(0 0% 0% / 0.06);
+    --shadow-strong: 0 10px 15px -3px hsl(0 0% 0% / 0.1), 0 4px 6px -2px hsl(0 0% 0% / 0.05);
 
     /* Animations */
-    --transition-fast: all 0.15s ease-out;
-    --transition-smooth: all 0.3s ease-out;
-    --transition-slow: all 0.5s ease-out;
+    --transition-fast: all 0.1s ease-in-out;
+    --transition-smooth: all 0.2s ease-in-out;
+    --transition-slow: all 0.3s ease-in-out;
 
-    --radius: 0.75rem;
+    --radius: 0.6rem;
 
-    --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 224 71% 4%;
+    --sidebar-primary: 221 83% 53%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 14% 96%;
+    --sidebar-accent-foreground: 224 71% 4%;
     --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-ring: 221 83% 53%;
   }
 
   .dark {

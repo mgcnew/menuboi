@@ -52,8 +52,8 @@ const Auth = () => {
 
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/5 via-background to-background">
+      <Card className="w-full max-w-md border-0 shadow-2xl backdrop-blur-sm bg-card/95">
         <CardHeader className="text-center">
           <div className="mx-auto mb-2 h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
             <Lock className="h-6 w-6 text-primary" />
@@ -71,9 +71,9 @@ const Auth = () => {
               <Label htmlFor="pass-in">Senha</Label>
               <Input id="pass-in" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
             </div>
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full h-12 text-base font-bold shadow-lg shadow-primary/20 transition-all hover:translate-y-[-2px] active:translate-y-[0px]" disabled={loading}>
               {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Entrar
+              Entrar no Sistema
             </Button>
             <p className="text-xs text-muted-foreground text-center pt-2">
               Cadastro disponível somente por convite do administrador.

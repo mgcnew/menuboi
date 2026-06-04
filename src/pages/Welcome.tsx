@@ -46,7 +46,7 @@ const Welcome = () => {
   );
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-background px-6 py-10">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-background px-6 py-10 transition-colors duration-500">
       <img
         src={logo}
         alt="Novo Boi João Dias"
@@ -66,10 +66,10 @@ const Welcome = () => {
               key={opt.id}
               onClick={() => navigate(opt.route)}
               onMouseEnter={() => !tvMode && setFocusedIndex(index)}
-              className={`relative flex flex-col items-center justify-center rounded-2xl bg-card text-card-foreground transition-all duration-200 ease-out ${
+              className={`relative flex flex-col items-center justify-center rounded-3xl bg-card text-card-foreground transition-all duration-300 ease-out hover:shadow-xl ${
                 isFocused
-                  ? "border-[3px] border-brand scale-[1.05] shadow-[0_10px_30px_-8px_hsl(var(--brand)/0.55)]"
-                  : "border-[3px] border-border"
+                  ? "border-[3px] border-brand scale-[1.08] shadow-[0_20px_40px_-12px_hsl(var(--brand)/0.4)] z-10"
+                  : "border-[2px] border-border hover:border-brand/30"
               }`}
               style={{
                 width: "clamp(140px, 22vmin, 300px)",
