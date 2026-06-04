@@ -13,19 +13,29 @@ interface ImageConfigModalProps {
 export const ImageConfigModal = ({ image, isOpen, onClose, onSave }: ImageConfigModalProps) => {
   const handleDownload = async () => {
     if (!image?.url) return;
+    const filename = image.name || 'download';
     try {
-      const response = await fetch(image.url);
+      const response = await fetch(image.url, { mode: 'cors' });
+      if (!response.ok) throw new Error('fetch failed');
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = image.name || 'download';
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
     } catch (error) {
-      console.error('Error downloading file:', error);
+      console.warn('Direct download failed, opening in new tab:', error);
+      const a = document.createElement('a');
+      a.href = image.url;
+      a.download = filename;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
     }
   };
 
