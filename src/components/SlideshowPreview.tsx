@@ -85,7 +85,7 @@ export const SlideshowPreview = ({ images: allImages, className = "" }: Slidesho
   }
 
   return (
-    <div className={`bg-card border shadow-soft rounded-lg overflow-hidden ${className}`}>
+    <div className={`bg-card border-0 shadow-lg rounded-xl overflow-hidden ${className}`}>
       {/* Preview Display */}
       <div className="relative aspect-video bg-slideshow-bg">
         {currentImage && (
@@ -119,7 +119,7 @@ export const SlideshowPreview = ({ images: allImages, className = "" }: Slidesho
         </div>
 
         {/* Slide counter */}
-        <div className="absolute top-2 right-2 bg-slideshow-overlay/50 text-slideshow-text px-2 py-1 rounded text-xs">
+        <div className="absolute top-2 right-2 bg-black/40 backdrop-blur-md text-white px-2 py-1 rounded-md text-[10px] font-bold">
           {currentIndex + 1}/{images.length}
         </div>
       </div>
@@ -133,14 +133,12 @@ export const SlideshowPreview = ({ images: allImages, className = "" }: Slidesho
       </div>
 
       {/* Controls */}
-      <div className="p-3 flex items-center justify-between">
-        <div className="flex items-center space-x-2">
+      <div className="p-4 flex items-center justify-between bg-muted/30">
+        <div className="flex items-center space-x-1.5">
           <Button
-            variant="outline"
-            size="sm"
-            onClick={prevSlide}
-            disabled={images.length <= 1}
-          >
+            variant="secondary"
+            size="icon"
+            className="h-8 w-8 rounded-full"
             <SkipBack className="h-3 w-3" />
           </Button>
           

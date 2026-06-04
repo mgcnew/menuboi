@@ -236,10 +236,10 @@ export const ImageUpload = ({ onImagesUploaded }: ImageUploadProps) => {
     <div className="space-y-3">
       <div
         className={`
-          relative border-2 border-dashed rounded-lg p-6 text-center transition-all cursor-pointer
+          relative border-2 border-dashed rounded-xl p-8 text-center transition-all cursor-pointer shadow-sm
           ${isDragOver 
-            ? 'border-primary bg-primary/5' 
-            : 'border-muted-foreground/25 hover:border-muted-foreground/50 hover:bg-muted/50'
+            ? 'border-primary bg-primary/5 shadow-inner scale-[0.99]' 
+            : 'border-muted-foreground/20 hover:border-primary/40 hover:bg-primary/5 hover:shadow-md'
           }
         `}
         onDrop={handleDrop}
