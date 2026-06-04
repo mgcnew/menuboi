@@ -273,21 +273,21 @@ export const AudioPlayer = ({
           showControls ? "opacity-100" : "opacity-0"
         }`}
       >
-        <div className="bg-black/80 text-white p-4 rounded-lg">
+        <div className="bg-black/40 backdrop-blur-xl text-white p-4 rounded-2xl shadow-2xl border border-white/10">
           <div className="flex items-center gap-3">
-            <Music className="h-5 w-5 text-blue-400 shrink-0" />
+            <Music className="h-5 w-5 text-primary shrink-0 animate-pulse" />
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium truncate max-w-[200px]">{currentName}</p>
-              <p className="text-xs opacity-75">{currentPos}</p>
+              <p className="text-sm font-bold truncate max-w-[200px] tracking-tight">{currentName}</p>
+              <p className="text-[10px] uppercase font-bold tracking-widest opacity-60">Música {currentPos}</p>
             </div>
             <div className="flex items-center gap-1">
-              <button onClick={prev} className="p-2 hover:bg-white/10 rounded-full">
-                <SkipBack className="h-4 w-4" />
+              <button onClick={prev} className="p-2 hover:bg-white/10 rounded-full transition-all active:scale-90">
+                <SkipBack className="h-4 w-4 fill-current" />
               </button>
-              <button onClick={next} className="p-2 hover:bg-white/10 rounded-full">
-                <SkipForward className="h-4 w-4" />
+              <button onClick={next} className="p-2 hover:bg-white/10 rounded-full transition-all active:scale-90">
+                <SkipForward className="h-4 w-4 fill-current" />
               </button>
-              <button onClick={toggleMute} className="p-2 hover:bg-white/10 rounded-full">
+              <button onClick={toggleMute} className="p-2 hover:bg-white/10 rounded-full transition-all active:scale-90">
                 {isMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
               </button>
             </div>
