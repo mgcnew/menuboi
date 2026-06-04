@@ -29,7 +29,7 @@ export const QRCodeDisplay = ({
 
   if (compact) {
     return (
-      <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg border">
+      <div className="flex items-center gap-4 p-4 bg-primary/5 rounded-xl border border-primary/10">
         <div className="bg-white p-2 rounded-lg flex-shrink-0">
           <QRCodeSVG value={tvUrl} size={80} level="M" />
         </div>
@@ -45,7 +45,7 @@ export const QRCodeDisplay = ({
   }
 
   return (
-    <Card className="p-6">
+    <Card className="p-6 rounded-2xl border-0 shadow-xl bg-card/80 backdrop-blur-md">
       <h3 className="text-lg font-semibold text-foreground mb-1 flex items-center gap-2">
         <QrCode className="h-5 w-5 text-primary" />
         {title}
