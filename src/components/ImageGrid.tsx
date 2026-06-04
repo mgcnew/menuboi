@@ -65,22 +65,30 @@ export const ImageGrid = ({ images, onImageDelete, onImageReorder, onImageUpdate
   };
 
   const handleDownload = async (image: MenuItem) => {
+    const urlExt = image.url.split("?")[0].split(".").pop() || (image.itemType === "video" ? "mp4" : "jpg");
+    const filename = image.name.includes(".") ? image.name : `${image.name}.${urlExt}`;
     try {
-      const res = await fetch(image.url);
+      const res = await fetch(image.url, { mode: "cors" });
       if (!res.ok) throw new Error("fetch failed");
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      const urlExt = image.url.split("?")[0].split(".").pop() || (image.itemType === "video" ? "mp4" : "jpg");
-      a.download = image.name.includes(".") ? image.name : `${image.name}.${urlExt}`;
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (err) {
-      console.error(err);
-      toast.error("Erro ao baixar arquivo");
+      console.warn("Direct download failed, opening in new tab:", err);
+      const a = document.createElement("a");
+      a.href = image.url;
+      a.download = filename;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
     }
   };
 
