@@ -126,7 +126,7 @@ export const InfoWidget = memo(({ settings }: InfoWidgetProps) => {
         >
           <div
             className={`
-              px-4 py-3 rounded-xl backdrop-blur-md bg-black/50 text-white
+              px-5 py-4 rounded-3xl backdrop-blur-xl bg-black/40 text-white shadow-2xl border border-white/10 flex flex-col items-center gap-1
             `}
           >
             {settings.showClock && <ClockWidget />}
@@ -144,7 +144,7 @@ export const InfoWidget = memo(({ settings }: InfoWidgetProps) => {
         >
           <div
             className={`
-              px-6 py-3 rounded-xl backdrop-blur-md text-lg font-medium bg-black/50 text-white
+              px-8 py-4 rounded-full backdrop-blur-xl text-xl font-bold bg-black/40 text-white border border-white/10 shadow-2xl tracking-tight
             `}
           >
             {settings.customMessage}

@@ -407,8 +407,8 @@ const Slideshow = () => {
     return (
       <div className={`min-h-screen ${getThemeClasses(settings.theme)} flex items-center justify-center`}>
         <div className={`text-center ${settings.theme === "light" ? "text-gray-900" : "text-white"}`}>
-          <div className="text-6xl mb-4">📱</div>
-          <h1 className="text-4xl font-bold mb-4">Menu Board Digital</h1>
+          <div className="text-8xl mb-8 animate-bounce opacity-20">📱</div>
+          <h1 className="text-5xl font-black mb-4 tracking-tighter">Menu Board Digital</h1>
           <p className="text-xl opacity-75">Nenhuma imagem para hoje.</p>
           <p className="text-sm opacity-50 mt-2">Dia atual: {getCurrentDayOfWeek()}</p>
         </div>
