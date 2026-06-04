@@ -16,7 +16,7 @@ import {
   POSITION_OPTIONS,
 } from "@/types/slideshow";
 import { slideshowSettingsTable } from "@/lib/supabase-helpers";
-import { MessageSquare, Loader2 } from "lucide-react";
+import { MessageSquare, Loader2, Sun, Moon, Layout, Palette } from "lucide-react";
 
 export const SlideshowSettingsCard = () => {
   const [settings, setSettings] = useState<SlideshowSettings | null>(null);
@@ -78,6 +78,7 @@ export const SlideshowSettingsCard = () => {
     try {
       const dbUpdates: Record<string, any> = {};
 
+      if (updates.theme !== undefined) dbUpdates.theme = updates.theme;
       if (updates.customMessage !== undefined) dbUpdates.custom_message = updates.customMessage;
       if (updates.customMessagePosition !== undefined) dbUpdates.custom_message_position = updates.customMessagePosition;
 
@@ -130,38 +131,73 @@ export const SlideshowSettingsCard = () => {
   }
 
   return (
-    <Card>
+    <Card className="border-0 shadow-xl bg-card/70 backdrop-blur-md overflow-hidden rounded-2xl">
       <CardHeader>
         <div className="flex items-center gap-2">
-          <MessageSquare className="h-5 w-5 text-primary" />
-          <CardTitle className="text-lg">Mensagem Fixa</CardTitle>
+          <div className="bg-primary/10 p-2 rounded-lg">
+            <Palette className="h-5 w-5 text-primary" />
+          </div>
+          <CardTitle className="text-xl font-bold tracking-tight">Estilo e Mensagens</CardTitle>
         </div>
         <CardDescription>
-          Configure uma mensagem de texto que ficará visível sobre as mídias.
+          Personalize o visual e as mensagens fixas do seu slideshow.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Custom Message */}
+      <CardContent className="space-y-6">
+        {/* Theme Selection */}
         <div className="space-y-3">
-          <Label className="text-sm font-medium">Sua Mensagem</Label>
+          <Label className="text-sm font-medium flex items-center gap-2">
+            <Sun className="h-4 w-4" /> Tema Visual
+          </Label>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => saveSettings({ theme: 'light' })}
+              className={`flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all ${
+                settings.theme === 'light' 
+                  ? 'border-primary bg-primary/5 text-primary' 
+                  : 'border-muted bg-muted/20 text-muted-foreground hover:border-muted-foreground/30'
+              }`}
+            >
+              <Sun className="h-6 w-6" />
+              <span className="text-xs font-bold uppercase tracking-wider">Claro</span>
+            </button>
+            <button
+              onClick={() => saveSettings({ theme: 'dark' })}
+              className={`flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all ${
+                settings.theme === 'dark' 
+                  ? 'border-primary bg-primary/5 text-primary' 
+                  : 'border-muted bg-muted/20 text-muted-foreground hover:border-muted-foreground/30'
+              }`}
+            >
+              <Moon className="h-6 w-6" />
+              <span className="text-xs font-bold uppercase tracking-wider">Noturno</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Custom Message */}
+        <div className="space-y-3 pt-4 border-t">
+          <Label className="text-sm font-medium flex items-center gap-2">
+            <MessageSquare className="h-4 w-4" /> Mensagem Fixa
+          </Label>
           <Input
             value={settings.customMessage || ""}
             onChange={(e) => setSettings({ ...settings, customMessage: e.target.value })}
             onBlur={() => saveSettings({ customMessage: settings.customMessage })}
             placeholder="Ex: Oferta especial: 20% de desconto!"
-            className="w-full"
+            className="w-full bg-background/50 border-muted-foreground/20 focus:border-primary/50 transition-all rounded-xl"
           />
 
           {settings.customMessage && (
             <div className="pt-2">
-              <Label htmlFor="message-position" className="text-xs text-muted-foreground mb-1 block">
-                Posição na tela
+              <Label htmlFor="message-position" className="text-xs text-muted-foreground mb-2 flex items-center gap-1.5">
+                <Layout className="h-3 w-3" /> Posição na tela
               </Label>
               <Select
                 value={settings.customMessagePosition}
                 onValueChange={(value) => saveSettings({ customMessagePosition: value as WidgetPosition })}
               >
-                <SelectTrigger id="message-position" className="w-[200px]">
+                <SelectTrigger id="message-position" className="w-full bg-background/50 border-muted-foreground/20 rounded-xl">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

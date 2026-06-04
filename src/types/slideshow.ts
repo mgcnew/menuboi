@@ -82,14 +82,12 @@ export interface PlaylistTrack {
 }
 
 // Slideshow Settings Types
-export type SlideshowTheme = 'dark' | 'light' | 'minimal' | 'branded';
+export type SlideshowTheme = 'dark' | 'light';
 export type WidgetPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'bottom-center';
 
 export const THEME_OPTIONS: { value: SlideshowTheme; label: string; description: string }[] = [
-  { value: 'dark', label: 'Escuro', description: 'Fundo preto, ideal para ambientes escuros' },
+  { value: 'dark', label: 'Noturno', description: 'Fundo preto, ideal para ambientes escuros' },
   { value: 'light', label: 'Claro', description: 'Fundo branco, ideal para ambientes claros' },
-  { value: 'minimal', label: 'Minimal', description: 'Sem sobreposições, apenas imagens' },
-  { value: 'branded', label: 'Branded', description: 'Exibe logo da empresa' },
 ];
 
 export const POSITION_OPTIONS: { value: WidgetPosition; label: string }[] = [

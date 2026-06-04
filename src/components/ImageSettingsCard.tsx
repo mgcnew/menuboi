@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Image as ImageIcon } from "lucide-react";
+import { Image as ImageIcon, Timer, Calendar, Zap } from "lucide-react";
 
 import { TransitionType, TRANSITION_OPTIONS, DAY_OPTIONS, DayOfWeek } from "@/types/slideshow";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -69,8 +69,8 @@ export const ImageSettingsCard = ({
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="transition-time" className="text-sm font-medium">
-            Tempo entre imagens
+          <Label htmlFor="transition-time" className="text-sm font-medium flex items-center gap-2">
+            <Timer className="h-4 w-4" /> Tempo entre imagens
           </Label>
           <div className="flex items-center gap-2">
             <Input
@@ -90,7 +90,9 @@ export const ImageSettingsCard = ({
         </div>
 
         <div className="space-y-2 pt-4 border-t">
-          <Label>Dias de Exibição Global</Label>
+          <Label className="flex items-center gap-2">
+            <Calendar className="h-4 w-4" /> Dias de Exibição Global
+          </Label>
           <div className="flex items-center gap-2 mb-2">
             <Checkbox
               id="global-all-days"
@@ -121,7 +123,9 @@ export const ImageSettingsCard = ({
         </div>
 
         <div className="space-y-2 pt-4 border-t">
-          <Label>Efeito de Transição Global</Label>
+          <Label className="flex items-center gap-2">
+            <Zap className="h-4 w-4" /> Efeito de Transição Global
+          </Label>
           <Select 
             value={globalTransitionType} 
             onValueChange={(value: TransitionType) => onGlobalTransitionTypeChange(value)}

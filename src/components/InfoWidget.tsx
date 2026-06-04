@@ -144,7 +144,7 @@ export const InfoWidget = memo(({ settings }: InfoWidgetProps) => {
         >
           <div
             className={`
-              px-8 py-4 rounded-full backdrop-blur-xl text-xl font-bold bg-black/40 text-white border border-white/10 shadow-2xl tracking-tight
+              px-8 py-4 rounded-3xl backdrop-blur-2xl text-2xl font-black bg-black/60 text-white border border-white/20 shadow-2xl tracking-tighter uppercase transition-all animate-in fade-in zoom-in duration-500
             `}
           >
             {settings.customMessage}
