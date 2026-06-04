@@ -119,7 +119,7 @@ export const AnnouncementUpload = ({ onAnnouncementsUploaded }: AnnouncementUplo
 
   return (
     <div
-      className={`upload-area ${isDragging ? 'dragover' : ''} ${isUploading ? 'opacity-60' : ''}`}
+      className={`upload-area border-2 border-dashed rounded-xl p-8 text-center transition-all cursor-pointer shadow-sm ${isDragging ? 'border-primary bg-primary/5 shadow-inner scale-[0.99]' : 'border-muted-foreground/20 hover:border-primary/40 hover:bg-primary/5'} ${isUploading ? 'opacity-60' : ''}`}
       onDrop={handleDrop}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
