@@ -137,34 +137,34 @@ export const InfoWidget = memo(({ settings }: InfoWidgetProps) => {
         </div>
       )}
 
-      {/* Custom Message Marquee */}
+      {/* Custom Message Marquee (Ticker) */}
       {settings.customMessage && (
         <div
-          className={`fixed bottom-0 left-0 right-0 z-30 overflow-hidden bg-black/60 backdrop-blur-md border-t border-white/10 py-3 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]`}
+          className={`fixed bottom-0 left-0 right-0 z-30 overflow-hidden bg-black/80 backdrop-blur-xl border-t border-white/10 py-4 shadow-[0_-20px_50px_rgba(0,0,0,0.5)]`}
         >
           <div className="flex whitespace-nowrap">
             <div className="animate-marquee inline-block">
-              <span className="text-2xl font-black text-white px-4 tracking-tighter uppercase italic flex items-center gap-8">
+              <span className="text-3xl font-black text-white px-4 tracking-tighter uppercase italic flex items-center gap-12">
                 {settings.customMessage}
-                <span className="inline-block w-4 h-4 bg-primary rounded-full" />
+                <span className="inline-block w-3 h-3 bg-primary rounded-full animate-pulse" />
                 {settings.customMessage}
-                <span className="inline-block w-4 h-4 bg-primary rounded-full" />
+                <span className="inline-block w-3 h-3 bg-primary rounded-full animate-pulse" />
                 {settings.customMessage}
-                <span className="inline-block w-4 h-4 bg-primary rounded-full" />
+                <span className="inline-block w-3 h-3 bg-primary rounded-full animate-pulse" />
                 {settings.customMessage}
-                <span className="inline-block w-4 h-4 bg-primary rounded-full" />
+                <span className="inline-block w-3 h-3 bg-primary rounded-full animate-pulse" />
               </span>
             </div>
             <div className="animate-marquee inline-block" aria-hidden="true">
-              <span className="text-2xl font-black text-white px-4 tracking-tighter uppercase italic flex items-center gap-8">
+              <span className="text-3xl font-black text-white px-4 tracking-tighter uppercase italic flex items-center gap-12">
                 {settings.customMessage}
-                <span className="inline-block w-4 h-4 bg-primary rounded-full" />
+                <span className="inline-block w-3 h-3 bg-primary rounded-full animate-pulse" />
                 {settings.customMessage}
-                <span className="inline-block w-4 h-4 bg-primary rounded-full" />
+                <span className="inline-block w-3 h-3 bg-primary rounded-full animate-pulse" />
                 {settings.customMessage}
-                <span className="inline-block w-4 h-4 bg-primary rounded-full" />
+                <span className="inline-block w-3 h-3 bg-primary rounded-full animate-pulse" />
                 {settings.customMessage}
-                <span className="inline-block w-4 h-4 bg-primary rounded-full" />
+                <span className="inline-block w-3 h-3 bg-primary rounded-full animate-pulse" />
               </span>
             </div>
           </div>
