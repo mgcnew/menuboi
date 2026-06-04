@@ -448,3 +448,11 @@ body.tv-mode *:focus-visible {
 }
 
 /* Welcome screen uses only utility classes — no custom animations needed. */
+
+/* Hide Lovable badge */
+#lovable-badge,
+#lovable-badge-v2,
+[id^="lovable-badge"],
+a[href*="lovable.dev"][target="_blank"] {
+  display: none !important;
+}
