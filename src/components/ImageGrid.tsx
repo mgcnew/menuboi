@@ -98,17 +98,17 @@ export const ImageGrid = ({ images, onImageDelete, onImageReorder, onImageUpdate
 
   return (
     <>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {sortedImages.map((image, index) => {
           const active = playsToday(image);
           return (
           <div
             key={image.id}
             className={`
-              relative group cursor-move rounded-lg overflow-hidden bg-muted
-              aspect-video transition-all duration-200
-              ${draggedItem?.id === image.id ? 'opacity-50 scale-95' : 'hover:ring-2 hover:ring-primary/50'}
-              ${!active ? 'opacity-50 grayscale' : ''}
+              relative group cursor-move rounded-xl overflow-hidden bg-card border shadow-sm
+              aspect-video transition-all duration-300 ease-out
+              ${draggedItem?.id === image.id ? 'opacity-50 scale-95 ring-4 ring-primary/20' : 'hover:shadow-xl hover:translate-y-[-4px] hover:border-primary/50'}
+              ${!active ? 'opacity-40 grayscale blur-[1px]' : ''}
             `}
             draggable
             onDragStart={(e) => handleDragStart(e, image)}
