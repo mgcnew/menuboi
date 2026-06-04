@@ -137,35 +137,52 @@ export const InfoWidget = memo(({ settings }: InfoWidgetProps) => {
         </div>
       )}
 
-      {/* Custom Message Marquee (Ticker) - compact bar so it doesn't cover the image */}
+      {/* Custom Message Marquee (Ticker) — World Cup Brazil Theme */}
       {settings.customMessage && (
         <div
-          className="fixed bottom-0 left-0 right-0 z-30 overflow-hidden bg-black/85 backdrop-blur-xl border-t border-white/10 shadow-[0_-10px_30px_rgba(0,0,0,0.5)]"
+          className="fixed bottom-0 left-0 right-0 z-30 overflow-hidden shadow-[0_-10px_30px_rgba(0,0,0,0.5)]"
           style={{ height: "64px" }}
         >
-          <div className="flex whitespace-nowrap h-full items-center">
+          {/* Green-yellow stripes header (bandeira do Brasil vibe) */}
+          <div className="absolute top-0 left-0 right-0 h-1 flex">
+            <div className="flex-1 bg-[#009c3b]" />
+            <div className="flex-1 bg-[#ffdf00]" />
+            <div className="flex-1 bg-[#009c3b]" />
+            <div className="flex-1 bg-[#ffdf00]" />
+            <div className="flex-1 bg-[#009c3b]" />
+            <div className="flex-1 bg-[#ffdf00]" />
+            <div className="flex-1 bg-[#009c3b]" />
+            <div className="flex-1 bg-[#ffdf00]" />
+          </div>
+
+          <div
+            className="flex whitespace-nowrap h-full items-center"
+            style={{
+              background: "linear-gradient(90deg, #002776 0%, #009c3b 50%, #002776 100%)",
+            }}
+          >
             <div className="animate-marquee inline-flex items-center">
-              <span className="text-xl font-bold text-white px-4 tracking-wide uppercase flex items-center gap-10">
-                {settings.customMessage}
-                <span className="inline-block w-2 h-2 bg-primary rounded-full" />
-                {settings.customMessage}
-                <span className="inline-block w-2 h-2 bg-primary rounded-full" />
-                {settings.customMessage}
-                <span className="inline-block w-2 h-2 bg-primary rounded-full" />
-                {settings.customMessage}
-                <span className="inline-block w-2 h-2 bg-primary rounded-full" />
+              <span className="text-xl font-black text-[#ffdf00] px-4 tracking-wider uppercase flex items-center gap-10" style={{ textShadow: "0 2px 4px rgba(0,0,0,0.8)" }}>
+                ⚽ {settings.customMessage} 🏆
+                <span className="inline-block w-2.5 h-2.5 bg-[#ffdf00] rounded-full shadow-md" />
+                ⚽ {settings.customMessage} 🏆
+                <span className="inline-block w-2.5 h-2.5 bg-[#ffdf00] rounded-full shadow-md" />
+                ⚽ {settings.customMessage} 🏆
+                <span className="inline-block w-2.5 h-2.5 bg-[#ffdf00] rounded-full shadow-md" />
+                ⚽ {settings.customMessage} 🏆
+                <span className="inline-block w-2.5 h-2.5 bg-[#ffdf00] rounded-full shadow-md" />
               </span>
             </div>
             <div className="animate-marquee inline-flex items-center" aria-hidden="true">
-              <span className="text-xl font-bold text-white px-4 tracking-wide uppercase flex items-center gap-10">
-                {settings.customMessage}
-                <span className="inline-block w-2 h-2 bg-primary rounded-full" />
-                {settings.customMessage}
-                <span className="inline-block w-2 h-2 bg-primary rounded-full" />
-                {settings.customMessage}
-                <span className="inline-block w-2 h-2 bg-primary rounded-full" />
-                {settings.customMessage}
-                <span className="inline-block w-2 h-2 bg-primary rounded-full" />
+              <span className="text-xl font-black text-[#ffdf00] px-4 tracking-wider uppercase flex items-center gap-10" style={{ textShadow: "0 2px 4px rgba(0,0,0,0.8)" }}>
+                ⚽ {settings.customMessage} 🏆
+                <span className="inline-block w-2.5 h-2.5 bg-[#ffdf00] rounded-full shadow-md" />
+                ⚽ {settings.customMessage} 🏆
+                <span className="inline-block w-2.5 h-2.5 bg-[#ffdf00] rounded-full shadow-md" />
+                ⚽ {settings.customMessage} 🏆
+                <span className="inline-block w-2.5 h-2.5 bg-[#ffdf00] rounded-full shadow-md" />
+                ⚽ {settings.customMessage} 🏆
+                <span className="inline-block w-2.5 h-2.5 bg-[#ffdf00] rounded-full shadow-md" />
               </span>
             </div>
           </div>
