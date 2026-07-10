@@ -344,20 +344,47 @@ export const AudioPlayer = ({
       if (ctx && ctx.state === "suspended") ctx.resume().catch(() => {});
       const audio = musicRef.current;
       if (audio) {
+        audio.muted = false;
         audio.play()
           .then(() => setNeedsUserGesture(false))
           .catch(() => {});
       }
     };
-    window.addEventListener("click", resume, { once: true });
-    window.addEventListener("keydown", resume, { once: true });
-    window.addEventListener("touchstart", resume, { once: true });
-    return () => {
-      window.removeEventListener("click", resume);
-      window.removeEventListener("keydown", resume);
-      window.removeEventListener("touchstart", resume);
+    // Tentativa 1: autoplay mudo → desmutar (funciona na maioria das Smart TVs)
+    const tryMutedAutoplay = () => {
+      const audio = musicRef.current;
+      if (!audio) return;
+      audio.muted = true;
+      audio.play()
+        .then(() => {
+          // Sucesso tocando mudo — desmuta em seguida
+          setTimeout(() => {
+            if (!isMuted) audio.muted = false;
+            const ctx = audioCtxRef.current;
+            if (ctx && ctx.state === "suspended") ctx.resume().catch(() => {});
+            setNeedsUserGesture(false);
+          }, 300);
+        })
+        .catch(() => {
+          // Continua aguardando gesto
+        });
     };
-  }, [needsUserGesture]);
+    tryMutedAutoplay();
+    const retryTimer = setInterval(tryMutedAutoplay, 3000);
+
+    // Captura ampla de qualquer input (mouse, toque, controle remoto, teclado)
+    const events = ["click", "pointerdown", "mousedown", "keydown", "keyup", "touchstart", "touchend", "wheel"];
+    events.forEach((ev) =>
+      document.addEventListener(ev, resume, { capture: true, passive: true } as AddEventListenerOptions)
+    );
+    return () => {
+      clearInterval(retryTimer);
+      events.forEach((ev) =>
+        document.removeEventListener(ev, resume, { capture: true } as EventListenerOptions)
+      );
+    };
+  }, [needsUserGesture, isMuted]);
+
 
   // ========== Controles ==========
   const toggleMute = useCallback(() => {
