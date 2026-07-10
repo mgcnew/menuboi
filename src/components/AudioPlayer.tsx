@@ -344,20 +344,47 @@ export const AudioPlayer = ({
       if (ctx && ctx.state === "suspended") ctx.resume().catch(() => {});
       const audio = musicRef.current;
       if (audio) {
+        audio.muted = false;
         audio.play()
           .then(() => setNeedsUserGesture(false))
           .catch(() => {});
       }
     };
-    window.addEventListener("click", resume, { once: true });
-    window.addEventListener("keydown", resume, { once: true });
-    window.addEventListener("touchstart", resume, { once: true });
-    return () => {
-      window.removeEventListener("click", resume);
-      window.removeEventListener("keydown", resume);
-      window.removeEventListener("touchstart", resume);
+    // Tentativa 1: autoplay mudo → desmutar (funciona na maioria das Smart TVs)
+    const tryMutedAutoplay = () => {
+      const audio = musicRef.current;
+      if (!audio) return;
+      audio.muted = true;
+      audio.play()
+        .then(() => {
+          // Sucesso tocando mudo — desmuta em seguida
+          setTimeout(() => {
+            if (!isMuted) audio.muted = false;
+            const ctx = audioCtxRef.current;
+            if (ctx && ctx.state === "suspended") ctx.resume().catch(() => {});
+            setNeedsUserGesture(false);
+          }, 300);
+        })
+        .catch(() => {
+          // Continua aguardando gesto
+        });
     };
-  }, [needsUserGesture]);
+    tryMutedAutoplay();
+    const retryTimer = setInterval(tryMutedAutoplay, 3000);
+
+    // Captura ampla de qualquer input (mouse, toque, controle remoto, teclado)
+    const events = ["click", "pointerdown", "mousedown", "keydown", "keyup", "touchstart", "touchend", "wheel"];
+    events.forEach((ev) =>
+      document.addEventListener(ev, resume, { capture: true, passive: true } as AddEventListenerOptions)
+    );
+    return () => {
+      clearInterval(retryTimer);
+      events.forEach((ev) =>
+        document.removeEventListener(ev, resume, { capture: true } as EventListenerOptions)
+      );
+    };
+  }, [needsUserGesture, isMuted]);
+
 
   // ========== Controles ==========
   const toggleMute = useCallback(() => {
@@ -404,7 +431,9 @@ export const AudioPlayer = ({
       <audio ref={announcementRef} onEnded={handleAnnouncementEnded} onError={handleAnnouncementError} preload="auto" crossOrigin="anonymous" />
 
       {needsUserGesture && (
-        <button
+        <div
+          role="button"
+          tabIndex={0}
           onClick={() => {
             const ctx = audioCtxRef.current;
             if (ctx && ctx.state === "suspended") ctx.resume().catch(() => {});
@@ -412,10 +441,18 @@ export const AudioPlayer = ({
               .then(() => setNeedsUserGesture(false))
               .catch(() => {});
           }}
-          className="fixed bottom-4 right-4 z-50 flex items-center gap-2 bg-primary text-primary-foreground px-4 py-3 rounded-full shadow-2xl font-bold text-sm animate-pulse"
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm cursor-pointer"
         >
-          <Play className="h-4 w-4 fill-current" /> Ativar áudio
-        </button>
+          <div className="flex flex-col items-center gap-4 text-white text-center px-8">
+            <div className="p-6 rounded-full bg-primary/20 border-2 border-primary animate-pulse">
+              <Play className="h-16 w-16 fill-current text-primary" />
+            </div>
+            <p className="text-2xl font-bold tracking-tight">Ativar áudio</p>
+            <p className="text-base opacity-80 max-w-md">
+              Pressione qualquer tecla do controle remoto ou toque na tela para iniciar a música
+            </p>
+          </div>
+        </div>
       )}
 
       <div
