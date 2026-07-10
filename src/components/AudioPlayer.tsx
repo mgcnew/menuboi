@@ -404,7 +404,9 @@ export const AudioPlayer = ({
       <audio ref={announcementRef} onEnded={handleAnnouncementEnded} onError={handleAnnouncementError} preload="auto" crossOrigin="anonymous" />
 
       {needsUserGesture && (
-        <button
+        <div
+          role="button"
+          tabIndex={0}
           onClick={() => {
             const ctx = audioCtxRef.current;
             if (ctx && ctx.state === "suspended") ctx.resume().catch(() => {});
@@ -412,10 +414,18 @@ export const AudioPlayer = ({
               .then(() => setNeedsUserGesture(false))
               .catch(() => {});
           }}
-          className="fixed bottom-4 right-4 z-50 flex items-center gap-2 bg-primary text-primary-foreground px-4 py-3 rounded-full shadow-2xl font-bold text-sm animate-pulse"
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm cursor-pointer"
         >
-          <Play className="h-4 w-4 fill-current" /> Ativar áudio
-        </button>
+          <div className="flex flex-col items-center gap-4 text-white text-center px-8">
+            <div className="p-6 rounded-full bg-primary/20 border-2 border-primary animate-pulse">
+              <Play className="h-16 w-16 fill-current text-primary" />
+            </div>
+            <p className="text-2xl font-bold tracking-tight">Ativar áudio</p>
+            <p className="text-base opacity-80 max-w-md">
+              Pressione qualquer tecla do controle remoto ou toque na tela para iniciar a música
+            </p>
+          </div>
+        </div>
       )}
 
       <div
