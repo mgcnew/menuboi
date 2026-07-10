@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, useCallback } from "react";
-import { Volume2, VolumeX, Music, SkipForward, SkipBack } from "lucide-react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import { Volume2, VolumeX, Music, SkipForward, SkipBack, Play } from "lucide-react";
 import { AudioTrack, Announcement } from "@/types/slideshow";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -20,7 +20,9 @@ interface PlaylistItem {
   type: "track" | "announcement";
 }
 
-const FADE_DURATION_MS = 800;     // duração do fade in/out
+const FADE_MS = 800;               // duração do ducking
+const VOLUME_RAMP_MS = 200;        // ajuste suave ao mudar volume no painel
+const MAX_CONSECUTIVE_ERRORS = 3;
 
 const shuffle = <T,>(arr: T[]): T[] => {
   const result = [...arr];
@@ -31,9 +33,9 @@ const shuffle = <T,>(arr: T[]): T[] => {
   return result;
 };
 
-export const AudioPlayer = ({ 
-  tracks, 
-  announcements, 
+export const AudioPlayer = ({
+  tracks,
+  announcements,
   announcementIntervalMinutes = 5,
   musicVolume = 0.45,
   announcementVolume = 1.0,
@@ -43,23 +45,41 @@ export const AudioPlayer = ({
   const announcementRef = useRef<HTMLAudioElement>(null);
   const urlCache = useRef(new Map<string, string>());
 
-  // Música
+  // === Web Audio graph ===
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const musicGainRef = useRef<GainNode | null>(null);
+  const announcementGainRef = useRef<GainNode | null>(null);
+  const masterGainRef = useRef<GainNode | null>(null);
+  const compressorRef = useRef<DynamicsCompressorNode | null>(null);
+  const musicSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
+  const announcementSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
+
+  // === Filas ===
   const musicQueueRef = useRef<PlaylistItem[]>([]);
   const musicIndexRef = useRef(0);
-
-  // Locução
   const announcementQueueRef = useRef<PlaylistItem[]>([]);
   const announcementIndexRef = useRef(0);
   const announcementTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const isPlayingAnnouncementRef = useRef(false);
-  const fadeRafRef = useRef<number>();
+  const musicErrorCountRef = useRef(0);
+
+  // === Refs que espelham props para uso dentro de callbacks estáveis ===
+  const musicVolumeRef = useRef(musicVolume);
+  const announcementVolumeRef = useRef(announcementVolume);
+  const musicDuckVolumeRef = useRef(musicDuckVolume);
+  const intervalRef = useRef(announcementIntervalMinutes);
 
   const [currentName, setCurrentName] = useState("");
   const [currentPos, setCurrentPos] = useState("0/0");
   const [isMuted, setIsMuted] = useState(false);
   const [showControls, setShowControls] = useState(false);
   const [hasContent, setHasContent] = useState(false);
+  const [needsUserGesture, setNeedsUserGesture] = useState(false);
   const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+
+  // Chave estável baseada nos ids (evita reinicializar quando settings mudam)
+  const tracksKey = useMemo(() => tracks.map((t) => t.id).join(","), [tracks]);
+  const announcementsKey = useMemo(() => announcements.map((a) => a.id).join(","), [announcements]);
 
   const getUrl = useCallback((item: PlaylistItem): string => {
     const key = `${item.type}-${item.filePath}`;
@@ -71,17 +91,66 @@ export const AudioPlayer = ({
     return publicUrl;
   }, []);
 
-  // Fade suave do volume
-  const fadeVolume = useCallback((audio: HTMLAudioElement, to: number, duration: number) => {
-    if (fadeRafRef.current) cancelAnimationFrame(fadeRafRef.current);
-    const from = audio.volume;
-    const start = performance.now();
-    const step = (now: number) => {
-      const t = Math.min(1, (now - start) / duration);
-      audio.volume = from + (to - from) * t;
-      if (t < 1) fadeRafRef.current = requestAnimationFrame(step);
-    };
-    fadeRafRef.current = requestAnimationFrame(step);
+  // Inicializa Web Audio graph (lazy, só quando primeiro play acontece)
+  const ensureAudioGraph = useCallback(() => {
+    if (audioCtxRef.current) return audioCtxRef.current;
+    const music = musicRef.current;
+    const announcement = announcementRef.current;
+    if (!music || !announcement) return null;
+
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      const ctx: AudioContext = new AudioCtx();
+
+      // Elementos <audio> sempre em volume máximo — o volume real vive no GainNode
+      music.volume = 1;
+      announcement.volume = 1;
+
+      const musicSrc = ctx.createMediaElementSource(music);
+      const annSrc = ctx.createMediaElementSource(announcement);
+
+      const musicGain = ctx.createGain();
+      const annGain = ctx.createGain();
+      const masterGain = ctx.createGain();
+
+      // Limiter para uniformizar loudness entre faixas
+      const compressor = ctx.createDynamicsCompressor();
+      compressor.threshold.value = -6;
+      compressor.knee.value = 6;
+      compressor.ratio.value = 12;
+      compressor.attack.value = 0.003;
+      compressor.release.value = 0.25;
+
+      musicGain.gain.value = musicVolumeRef.current;
+      annGain.gain.value = announcementVolumeRef.current;
+      masterGain.gain.value = 1;
+
+      musicSrc.connect(musicGain).connect(masterGain);
+      annSrc.connect(annGain).connect(masterGain);
+      masterGain.connect(compressor).connect(ctx.destination);
+
+      audioCtxRef.current = ctx;
+      musicGainRef.current = musicGain;
+      announcementGainRef.current = annGain;
+      masterGainRef.current = masterGain;
+      compressorRef.current = compressor;
+      musicSourceRef.current = musicSrc;
+      announcementSourceRef.current = annSrc;
+
+      return ctx;
+    } catch (e) {
+      console.warn("[AudioPlayer] Web Audio init failed, falling back", e);
+      return null;
+    }
+  }, []);
+
+  const rampGain = useCallback((gain: GainNode | null, target: number, ms: number) => {
+    const ctx = audioCtxRef.current;
+    if (!gain || !ctx) return;
+    const now = ctx.currentTime;
+    gain.gain.cancelScheduledValues(now);
+    gain.gain.setValueAtTime(gain.gain.value, now);
+    gain.gain.linearRampToValueAtTime(Math.max(0.0001, target), now + ms / 1000);
   }, []);
 
   // ========== MÚSICA ==========
@@ -95,16 +164,24 @@ export const AudioPlayer = ({
     setCurrentName(item.name);
     setCurrentPos(`${idx + 1}/${queue.length}`);
     audio.src = getUrl(item);
-    // Se já estamos em ducking, mantém volume baixo
-    audio.volume = isPlayingAnnouncementRef.current ? musicDuckVolume : musicVolume;
     audio.preload = "auto";
     audio.load();
+
     setTimeout(() => {
-      audio.play().catch(() => console.log("[AudioPlayer] Music autoplay blocked"));
+      ensureAudioGraph();
+      const ctx = audioCtxRef.current;
+      if (ctx && ctx.state === "suspended") ctx.resume().catch(() => {});
+      audio.play()
+        .then(() => setNeedsUserGesture(false))
+        .catch((err) => {
+          console.log("[AudioPlayer] Music autoplay blocked", err);
+          setNeedsUserGesture(true);
+        });
     }, 100);
-  }, [getUrl]);
+  }, [getUrl, ensureAudioGraph]);
 
   const handleMusicEnded = useCallback(() => {
+    musicErrorCountRef.current = 0;
     const next = musicIndexRef.current + 1;
     if (next >= musicQueueRef.current.length) {
       musicQueueRef.current = shuffle(musicQueueRef.current);
@@ -115,7 +192,12 @@ export const AudioPlayer = ({
   }, [playMusicIndex]);
 
   const handleMusicError = useCallback(() => {
-    console.warn("[AudioPlayer] Music error, skipping");
+    musicErrorCountRef.current += 1;
+    console.warn(`[AudioPlayer] Music error (${musicErrorCountRef.current})`);
+    if (musicErrorCountRef.current >= MAX_CONSECUTIVE_ERRORS) {
+      console.error("[AudioPlayer] Too many consecutive music errors, stopping.");
+      return;
+    }
     setTimeout(() => {
       const next = musicIndexRef.current + 1;
       if (musicQueueRef.current.length > 0) {
@@ -125,11 +207,21 @@ export const AudioPlayer = ({
   }, [playMusicIndex]);
 
   // ========== LOCUÇÃO ==========
+  const scheduleNextAnnouncement = useCallback(() => {
+    if (announcementTimerRef.current) clearTimeout(announcementTimerRef.current);
+    if (announcementQueueRef.current.length === 0) return;
+    const ms = Math.max(1, intervalRef.current) * 60 * 1000;
+    announcementTimerRef.current = setTimeout(() => {
+      playNextAnnouncement();
+    }, ms);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const playNextAnnouncement = useCallback(() => {
     const audio = announcementRef.current;
     const queue = announcementQueueRef.current;
-    const music = musicRef.current;
     if (!audio || queue.length === 0) return;
+    if (isPlayingAnnouncementRef.current) return;
 
     const idx = announcementIndexRef.current % queue.length;
     const item = queue[idx];
@@ -141,46 +233,39 @@ export const AudioPlayer = ({
 
     isPlayingAnnouncementRef.current = true;
     audio.src = getUrl(item);
-    audio.volume = announcementVolume;
     audio.load();
 
-    // Duck music
-    if (music) fadeVolume(music, musicDuckVolume, FADE_DURATION_MS);
+    ensureAudioGraph();
+    const ctx = audioCtxRef.current;
+    if (ctx && ctx.state === "suspended") ctx.resume().catch(() => {});
+
+    // Duck da música
+    rampGain(musicGainRef.current, musicDuckVolumeRef.current, FADE_MS);
+    // Locução no volume configurado
+    rampGain(announcementGainRef.current, announcementVolumeRef.current, 50);
 
     audio.play().catch((err) => {
       console.warn("[AudioPlayer] Announcement play failed:", err);
-      // Restaura música e reagenda
-      if (music) fadeVolume(music, musicVolume, FADE_DURATION_MS);
+      rampGain(musicGainRef.current, musicVolumeRef.current, FADE_MS);
       isPlayingAnnouncementRef.current = false;
       scheduleNextAnnouncement();
     });
-  }, [getUrl, fadeVolume]);
-
-  const scheduleNextAnnouncement = useCallback(() => {
-    if (announcementTimerRef.current) clearTimeout(announcementTimerRef.current);
-    if (announcementQueueRef.current.length === 0) return;
-    const ms = Math.max(1, announcementIntervalMinutes) * 60 * 1000;
-    announcementTimerRef.current = setTimeout(() => {
-      playNextAnnouncement();
-    }, ms);
-  }, [announcementIntervalMinutes, playNextAnnouncement]);
+  }, [getUrl, ensureAudioGraph, rampGain, scheduleNextAnnouncement]);
 
   const handleAnnouncementEnded = useCallback(() => {
     isPlayingAnnouncementRef.current = false;
-    const music = musicRef.current;
-    if (music) fadeVolume(music, musicVolume, FADE_DURATION_MS);
+    rampGain(musicGainRef.current, musicVolumeRef.current, FADE_MS);
     scheduleNextAnnouncement();
-  }, [fadeVolume, scheduleNextAnnouncement]);
+  }, [rampGain, scheduleNextAnnouncement]);
 
   const handleAnnouncementError = useCallback(() => {
     console.warn("[AudioPlayer] Announcement error, restoring music");
     isPlayingAnnouncementRef.current = false;
-    const music = musicRef.current;
-    if (music) fadeVolume(music, musicVolume, FADE_DURATION_MS);
+    rampGain(musicGainRef.current, musicVolumeRef.current, FADE_MS);
     scheduleNextAnnouncement();
-  }, [fadeVolume, scheduleNextAnnouncement]);
+  }, [rampGain, scheduleNextAnnouncement]);
 
-  // ========== Init / re-init ==========
+  // ========== (a) Init de filas — só quando as LISTAS mudam ==========
   useEffect(() => {
     urlCache.current.clear();
 
@@ -195,6 +280,7 @@ export const AudioPlayer = ({
     musicIndexRef.current = 0;
     announcementQueueRef.current = shuffle(annItems);
     announcementIndexRef.current = 0;
+    musicErrorCountRef.current = 0;
 
     setHasContent(trackItems.length > 0 || annItems.length > 0);
 
@@ -205,24 +291,73 @@ export const AudioPlayer = ({
 
     return () => {
       if (announcementTimerRef.current) clearTimeout(announcementTimerRef.current);
-      if (fadeRafRef.current) cancelAnimationFrame(fadeRafRef.current);
     };
-  }, [tracks, announcements, playMusicIndex, scheduleNextAnnouncement]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tracksKey, announcementsKey]);
 
-  // Update volume on change
+  // ========== (b) Sync de volumes (sem reiniciar música) ==========
   useEffect(() => {
-    const m = musicRef.current;
-    if (m && !isPlayingAnnouncementRef.current) {
-      m.volume = musicVolume;
+    musicVolumeRef.current = musicVolume;
+    if (!isPlayingAnnouncementRef.current) {
+      rampGain(musicGainRef.current, musicVolume, VOLUME_RAMP_MS);
     }
-  }, [musicVolume]);
+  }, [musicVolume, rampGain]);
 
   useEffect(() => {
-    const a = announcementRef.current;
-    if (a) {
-      a.volume = announcementVolume;
+    announcementVolumeRef.current = announcementVolume;
+    if (isPlayingAnnouncementRef.current) {
+      rampGain(announcementGainRef.current, announcementVolume, VOLUME_RAMP_MS);
     }
-  }, [announcementVolume]);
+  }, [announcementVolume, rampGain]);
+
+  useEffect(() => {
+    musicDuckVolumeRef.current = musicDuckVolume;
+    if (isPlayingAnnouncementRef.current) {
+      rampGain(musicGainRef.current, musicDuckVolume, VOLUME_RAMP_MS);
+    }
+  }, [musicDuckVolume, rampGain]);
+
+  // ========== (c) Sync do intervalo ==========
+  useEffect(() => {
+    intervalRef.current = announcementIntervalMinutes;
+    // Só reprograma se não há locução tocando agora
+    if (!isPlayingAnnouncementRef.current) {
+      scheduleNextAnnouncement();
+    }
+  }, [announcementIntervalMinutes, scheduleNextAnnouncement]);
+
+  // ========== Cleanup do AudioContext ao desmontar ==========
+  useEffect(() => {
+    return () => {
+      if (audioCtxRef.current) {
+        audioCtxRef.current.close().catch(() => {});
+        audioCtxRef.current = null;
+      }
+    };
+  }, []);
+
+  // ========== Autoplay gesture recovery ==========
+  useEffect(() => {
+    if (!needsUserGesture) return;
+    const resume = () => {
+      const ctx = audioCtxRef.current;
+      if (ctx && ctx.state === "suspended") ctx.resume().catch(() => {});
+      const audio = musicRef.current;
+      if (audio) {
+        audio.play()
+          .then(() => setNeedsUserGesture(false))
+          .catch(() => {});
+      }
+    };
+    window.addEventListener("click", resume, { once: true });
+    window.addEventListener("keydown", resume, { once: true });
+    window.addEventListener("touchstart", resume, { once: true });
+    return () => {
+      window.removeEventListener("click", resume);
+      window.removeEventListener("keydown", resume);
+      window.removeEventListener("touchstart", resume);
+    };
+  }, [needsUserGesture]);
 
   // ========== Controles ==========
   const toggleMute = useCallback(() => {
@@ -265,8 +400,23 @@ export const AudioPlayer = ({
 
   return (
     <>
-      <audio ref={musicRef} onEnded={handleMusicEnded} onError={handleMusicError} preload="auto" />
-      <audio ref={announcementRef} onEnded={handleAnnouncementEnded} onError={handleAnnouncementError} preload="auto" />
+      <audio ref={musicRef} onEnded={handleMusicEnded} onError={handleMusicError} preload="auto" crossOrigin="anonymous" />
+      <audio ref={announcementRef} onEnded={handleAnnouncementEnded} onError={handleAnnouncementError} preload="auto" crossOrigin="anonymous" />
+
+      {needsUserGesture && (
+        <button
+          onClick={() => {
+            const ctx = audioCtxRef.current;
+            if (ctx && ctx.state === "suspended") ctx.resume().catch(() => {});
+            musicRef.current?.play()
+              .then(() => setNeedsUserGesture(false))
+              .catch(() => {});
+          }}
+          className="fixed bottom-4 right-4 z-50 flex items-center gap-2 bg-primary text-primary-foreground px-4 py-3 rounded-full shadow-2xl font-bold text-sm animate-pulse"
+        >
+          <Play className="h-4 w-4 fill-current" /> Ativar áudio
+        </button>
+      )}
 
       <div
         className={`fixed top-4 right-4 z-50 transition-opacity duration-300 ${
