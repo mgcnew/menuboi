@@ -174,8 +174,16 @@ export const AudioPlayer = ({
       audio.play()
         .then(() => setNeedsUserGesture(false))
         .catch((err) => {
-          console.log("[AudioPlayer] Music autoplay blocked", err);
-          setNeedsUserGesture(true);
+          console.log("[AudioPlayer] Music autoplay blocked, retrying muted", err);
+          // Fallback: toca mudo (Smart TVs permitem) e sinaliza para desmutar
+          audio.muted = true;
+          audio.play()
+            .then(() => {
+              setNeedsUserGesture(true);
+            })
+            .catch(() => {
+              setNeedsUserGesture(true);
+            });
         });
     }, 100);
   }, [getUrl, ensureAudioGraph]);
