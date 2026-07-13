@@ -174,8 +174,16 @@ export const AudioPlayer = ({
       audio.play()
         .then(() => setNeedsUserGesture(false))
         .catch((err) => {
-          console.log("[AudioPlayer] Music autoplay blocked", err);
-          setNeedsUserGesture(true);
+          console.log("[AudioPlayer] Music autoplay blocked, retrying muted", err);
+          // Fallback: toca mudo (Smart TVs permitem) e sinaliza para desmutar
+          audio.muted = true;
+          audio.play()
+            .then(() => {
+              setNeedsUserGesture(true);
+            })
+            .catch(() => {
+              setNeedsUserGesture(true);
+            });
         });
     }, 100);
   }, [getUrl, ensureAudioGraph]);
@@ -431,26 +439,10 @@ export const AudioPlayer = ({
       <audio ref={announcementRef} onEnded={handleAnnouncementEnded} onError={handleAnnouncementError} preload="auto" crossOrigin="anonymous" />
 
       {needsUserGesture && (
-        <div
-          role="button"
-          tabIndex={0}
-          onClick={() => {
-            const ctx = audioCtxRef.current;
-            if (ctx && ctx.state === "suspended") ctx.resume().catch(() => {});
-            musicRef.current?.play()
-              .then(() => setNeedsUserGesture(false))
-              .catch(() => {});
-          }}
-          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm cursor-pointer"
-        >
-          <div className="flex flex-col items-center gap-4 text-white text-center px-8">
-            <div className="p-6 rounded-full bg-primary/20 border-2 border-primary animate-pulse">
-              <Play className="h-16 w-16 fill-current text-primary" />
-            </div>
-            <p className="text-2xl font-bold tracking-tight">Ativar áudio</p>
-            <p className="text-base opacity-80 max-w-md">
-              Pressione qualquer tecla do controle remoto ou toque na tela para iniciar a música
-            </p>
+        <div className="fixed bottom-4 left-4 z-50 pointer-events-none">
+          <div className="bg-black/60 backdrop-blur-xl text-white px-3 py-2 rounded-xl shadow-2xl border border-white/10 flex items-center gap-2">
+            <VolumeX className="h-4 w-4 text-primary" />
+            <span className="text-xs font-medium opacity-90">Áudio sem som — pressione OK no controle</span>
           </div>
         </div>
       )}
