@@ -529,8 +529,8 @@ export const AudioPlayer = ({
 
   return (
     <>
-      <audio ref={musicRef} onEnded={handleMusicEnded} onError={handleMusicError} preload="auto" autoPlay playsInline crossOrigin="anonymous" />
-      <audio ref={announcementRef} onEnded={handleAnnouncementEnded} onError={handleAnnouncementError} preload="auto" autoPlay playsInline crossOrigin="anonymous" />
+      <audio ref={musicRef} onEnded={handleMusicEnded} onError={handleMusicError} preload="auto" autoPlay crossOrigin="anonymous" />
+      <audio ref={announcementRef} onEnded={handleAnnouncementEnded} onError={handleAnnouncementError} preload="auto" autoPlay crossOrigin="anonymous" />
 
       {!tvMode && needsUserGesture && (
         <div className="fixed bottom-4 left-4 z-50 pointer-events-none">
