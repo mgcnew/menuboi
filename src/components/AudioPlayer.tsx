@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
-import { Volume2, VolumeX, Music, SkipForward, SkipBack, Play } from "lucide-react";
+import { Volume2, VolumeX, Music, SkipForward, SkipBack } from "lucide-react";
 import { AudioTrack, Announcement } from "@/types/slideshow";
 import { supabase } from "@/integrations/supabase/client";
+import { isSmartTV } from "@/hooks/use-remote-navigation";
 
 interface AudioPlayerProps {
   tracks: AudioTrack[];
@@ -23,6 +24,7 @@ interface PlaylistItem {
 const FADE_MS = 800;               // duração do ducking
 const VOLUME_RAMP_MS = 200;        // ajuste suave ao mudar volume no painel
 const MAX_CONSECUTIVE_ERRORS = 3;
+const TV_RETRY_MS = 2000;
 
 const shuffle = <T,>(arr: T[]): T[] => {
   const result = [...arr];
@@ -44,6 +46,7 @@ export const AudioPlayer = ({
   const musicRef = useRef<HTMLAudioElement>(null);
   const announcementRef = useRef<HTMLAudioElement>(null);
   const urlCache = useRef(new Map<string, string>());
+  const tvMode = useRef(isSmartTV()).current;
 
   // === Web Audio graph ===
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -53,6 +56,7 @@ export const AudioPlayer = ({
   const compressorRef = useRef<DynamicsCompressorNode | null>(null);
   const musicSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
   const announcementSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
+  const nativeFadeFrameRef = useRef<{ music?: number; announcement?: number }>({});
 
   // === Filas ===
   const musicQueueRef = useRef<PlaylistItem[]>([]);
@@ -93,6 +97,9 @@ export const AudioPlayer = ({
 
   // Inicializa Web Audio graph (lazy, só quando primeiro play acontece)
   const ensureAudioGraph = useCallback(() => {
+    // Smart TVs tend to be inconsistent with AudioContext unlock/resume.
+    // On TVs, use the native <audio> pipeline and control volume directly.
+    if (tvMode) return null;
     if (audioCtxRef.current) return audioCtxRef.current;
     const music = musicRef.current;
     const announcement = announcementRef.current;
@@ -142,7 +149,7 @@ export const AudioPlayer = ({
       console.warn("[AudioPlayer] Web Audio init failed, falling back", e);
       return null;
     }
-  }, []);
+  }, [tvMode]);
 
   const rampGain = useCallback((gain: GainNode | null, target: number, ms: number) => {
     const ctx = audioCtxRef.current;
@@ -152,6 +159,50 @@ export const AudioPlayer = ({
     gain.gain.setValueAtTime(gain.gain.value, now);
     gain.gain.linearRampToValueAtTime(Math.max(0.0001, target), now + ms / 1000);
   }, []);
+
+  const fadeNativeVolume = useCallback((
+    audio: HTMLAudioElement | null,
+    target: number,
+    ms: number,
+    channel: "music" | "announcement"
+  ) => {
+    if (!audio) return;
+    const clamped = Math.min(1, Math.max(0, target));
+    const frames = nativeFadeFrameRef.current;
+    if (frames[channel]) cancelAnimationFrame(frames[channel]!);
+
+    if (ms <= 0) {
+      audio.volume = clamped;
+      return;
+    }
+
+    const start = audio.volume;
+    const startedAt = performance.now();
+    const step = (now: number) => {
+      const progress = Math.min(1, (now - startedAt) / ms);
+      audio.volume = start + (clamped - start) * progress;
+      if (progress < 1) {
+        frames[channel] = requestAnimationFrame(step);
+      }
+    };
+    frames[channel] = requestAnimationFrame(step);
+  }, []);
+
+  const applyMusicVolume = useCallback((target: number, ms: number) => {
+    if (musicGainRef.current && audioCtxRef.current && !tvMode) {
+      rampGain(musicGainRef.current, target, ms);
+      return;
+    }
+    fadeNativeVolume(musicRef.current, target, ms, "music");
+  }, [fadeNativeVolume, rampGain, tvMode]);
+
+  const applyAnnouncementVolume = useCallback((target: number, ms: number) => {
+    if (announcementGainRef.current && audioCtxRef.current && !tvMode) {
+      rampGain(announcementGainRef.current, target, ms);
+      return;
+    }
+    fadeNativeVolume(announcementRef.current, target, ms, "announcement");
+  }, [fadeNativeVolume, rampGain, tvMode]);
 
   // ========== MÚSICA ==========
   const playMusicIndex = useCallback((index: number) => {
@@ -165,16 +216,25 @@ export const AudioPlayer = ({
     setCurrentPos(`${idx + 1}/${queue.length}`);
     audio.src = getUrl(item);
     audio.preload = "auto";
+    audio.autoplay = true;
+    audio.muted = isMuted;
+    audio.volume = isPlayingAnnouncementRef.current ? musicDuckVolumeRef.current : musicVolumeRef.current;
     audio.load();
 
     setTimeout(() => {
-      ensureAudioGraph();
-      const ctx = audioCtxRef.current;
-      if (ctx && ctx.state === "suspended") ctx.resume().catch(() => {});
+      if (!tvMode) {
+        ensureAudioGraph();
+        const ctx = audioCtxRef.current;
+        if (ctx && ctx.state === "suspended") ctx.resume().catch(() => {});
+      }
       audio.play()
         .then(() => setNeedsUserGesture(false))
         .catch((err) => {
-          console.log("[AudioPlayer] Music autoplay blocked, retrying muted", err);
+          console.log("[AudioPlayer] Music autoplay blocked", err);
+          if (tvMode) {
+            setNeedsUserGesture(true);
+            return;
+          }
           // Fallback: toca mudo (Smart TVs permitem) e sinaliza para desmutar
           audio.muted = true;
           audio.play()
@@ -186,7 +246,7 @@ export const AudioPlayer = ({
             });
         });
     }, 100);
-  }, [getUrl, ensureAudioGraph]);
+  }, [getUrl, ensureAudioGraph, isMuted, tvMode]);
 
   const handleMusicEnded = useCallback(() => {
     musicErrorCountRef.current = 0;
@@ -243,35 +303,41 @@ export const AudioPlayer = ({
     audio.src = getUrl(item);
     audio.load();
 
-    ensureAudioGraph();
-    const ctx = audioCtxRef.current;
-    if (ctx && ctx.state === "suspended") ctx.resume().catch(() => {});
+    audio.autoplay = true;
+    audio.muted = isMuted;
+    audio.volume = announcementVolumeRef.current;
+
+    if (!tvMode) {
+      ensureAudioGraph();
+      const ctx = audioCtxRef.current;
+      if (ctx && ctx.state === "suspended") ctx.resume().catch(() => {});
+    }
 
     // Duck da música
-    rampGain(musicGainRef.current, musicDuckVolumeRef.current, FADE_MS);
+    applyMusicVolume(musicDuckVolumeRef.current, FADE_MS);
     // Locução no volume configurado
-    rampGain(announcementGainRef.current, announcementVolumeRef.current, 50);
+    applyAnnouncementVolume(announcementVolumeRef.current, 50);
 
     audio.play().catch((err) => {
       console.warn("[AudioPlayer] Announcement play failed:", err);
-      rampGain(musicGainRef.current, musicVolumeRef.current, FADE_MS);
+      applyMusicVolume(musicVolumeRef.current, FADE_MS);
       isPlayingAnnouncementRef.current = false;
       scheduleNextAnnouncement();
     });
-  }, [getUrl, ensureAudioGraph, rampGain, scheduleNextAnnouncement]);
+  }, [getUrl, ensureAudioGraph, applyMusicVolume, applyAnnouncementVolume, scheduleNextAnnouncement, isMuted, tvMode]);
 
   const handleAnnouncementEnded = useCallback(() => {
     isPlayingAnnouncementRef.current = false;
-    rampGain(musicGainRef.current, musicVolumeRef.current, FADE_MS);
+    applyMusicVolume(musicVolumeRef.current, FADE_MS);
     scheduleNextAnnouncement();
-  }, [rampGain, scheduleNextAnnouncement]);
+  }, [applyMusicVolume, scheduleNextAnnouncement]);
 
   const handleAnnouncementError = useCallback(() => {
     console.warn("[AudioPlayer] Announcement error, restoring music");
     isPlayingAnnouncementRef.current = false;
-    rampGain(musicGainRef.current, musicVolumeRef.current, FADE_MS);
+    applyMusicVolume(musicVolumeRef.current, FADE_MS);
     scheduleNextAnnouncement();
-  }, [rampGain, scheduleNextAnnouncement]);
+  }, [applyMusicVolume, scheduleNextAnnouncement]);
 
   // ========== (a) Init de filas — só quando as LISTAS mudam ==========
   useEffect(() => {
@@ -307,23 +373,23 @@ export const AudioPlayer = ({
   useEffect(() => {
     musicVolumeRef.current = musicVolume;
     if (!isPlayingAnnouncementRef.current) {
-      rampGain(musicGainRef.current, musicVolume, VOLUME_RAMP_MS);
+      applyMusicVolume(musicVolume, VOLUME_RAMP_MS);
     }
-  }, [musicVolume, rampGain]);
+  }, [musicVolume, applyMusicVolume]);
 
   useEffect(() => {
     announcementVolumeRef.current = announcementVolume;
     if (isPlayingAnnouncementRef.current) {
-      rampGain(announcementGainRef.current, announcementVolume, VOLUME_RAMP_MS);
+      applyAnnouncementVolume(announcementVolume, VOLUME_RAMP_MS);
     }
-  }, [announcementVolume, rampGain]);
+  }, [announcementVolume, applyAnnouncementVolume]);
 
   useEffect(() => {
     musicDuckVolumeRef.current = musicDuckVolume;
     if (isPlayingAnnouncementRef.current) {
-      rampGain(musicGainRef.current, musicDuckVolume, VOLUME_RAMP_MS);
+      applyMusicVolume(musicDuckVolume, VOLUME_RAMP_MS);
     }
-  }, [musicDuckVolume, rampGain]);
+  }, [musicDuckVolume, applyMusicVolume]);
 
   // ========== (c) Sync do intervalo ==========
   useEffect(() => {
@@ -341,6 +407,9 @@ export const AudioPlayer = ({
         audioCtxRef.current.close().catch(() => {});
         audioCtxRef.current = null;
       }
+      Object.values(nativeFadeFrameRef.current).forEach((frame) => {
+        if (frame) cancelAnimationFrame(frame);
+      });
     };
   }, []);
 
@@ -348,16 +417,37 @@ export const AudioPlayer = ({
   useEffect(() => {
     if (!needsUserGesture) return;
     const resume = () => {
-      const ctx = audioCtxRef.current;
-      if (ctx && ctx.state === "suspended") ctx.resume().catch(() => {});
       const audio = musicRef.current;
       if (audio) {
-        audio.muted = false;
+        if (!tvMode) {
+          const ctx = audioCtxRef.current;
+          if (ctx && ctx.state === "suspended") ctx.resume().catch(() => {});
+        }
+        audio.muted = isMuted;
+        audio.volume = isPlayingAnnouncementRef.current ? musicDuckVolumeRef.current : musicVolumeRef.current;
         audio.play()
           .then(() => setNeedsUserGesture(false))
           .catch(() => {});
       }
     };
+
+    if (tvMode) {
+      resume();
+      const retryTimer = setInterval(resume, TV_RETRY_MS);
+      const events = ["click", "pointerdown", "pointerup", "mousedown", "mouseup", "keydown", "keyup", "keypress", "touchstart", "touchend", "wheel"];
+      events.forEach((ev) => {
+        document.addEventListener(ev, resume, { capture: true, passive: true } as AddEventListenerOptions);
+        window.addEventListener(ev, resume, { capture: true, passive: true } as AddEventListenerOptions);
+      });
+      return () => {
+        clearInterval(retryTimer);
+        events.forEach((ev) => {
+          document.removeEventListener(ev, resume, { capture: true } as EventListenerOptions);
+          window.removeEventListener(ev, resume, { capture: true } as EventListenerOptions);
+        });
+      };
+    }
+
     // Tentativa 1: autoplay mudo → desmutar (funciona na maioria das Smart TVs)
     const tryMutedAutoplay = () => {
       const audio = musicRef.current;
@@ -391,7 +481,7 @@ export const AudioPlayer = ({
         document.removeEventListener(ev, resume, { capture: true } as EventListenerOptions)
       );
     };
-  }, [needsUserGesture, isMuted]);
+  }, [needsUserGesture, isMuted, tvMode]);
 
 
   // ========== Controles ==========
@@ -401,6 +491,10 @@ export const AudioPlayer = ({
     if (m) m.muted = newMuted;
     if (a) a.muted = newMuted;
     setIsMuted(newMuted);
+    if (!newMuted && tvMode && m) {
+      m.volume = isPlayingAnnouncementRef.current ? musicDuckVolumeRef.current : musicVolumeRef.current;
+      m.play().then(() => setNeedsUserGesture(false)).catch(() => setNeedsUserGesture(true));
+    }
   }, [isMuted]);
 
   const next = useCallback(() => {
@@ -435,10 +529,10 @@ export const AudioPlayer = ({
 
   return (
     <>
-      <audio ref={musicRef} onEnded={handleMusicEnded} onError={handleMusicError} preload="auto" crossOrigin="anonymous" />
-      <audio ref={announcementRef} onEnded={handleAnnouncementEnded} onError={handleAnnouncementError} preload="auto" crossOrigin="anonymous" />
+      <audio ref={musicRef} onEnded={handleMusicEnded} onError={handleMusicError} preload="auto" autoPlay playsInline crossOrigin="anonymous" />
+      <audio ref={announcementRef} onEnded={handleAnnouncementEnded} onError={handleAnnouncementError} preload="auto" autoPlay playsInline crossOrigin="anonymous" />
 
-      {needsUserGesture && (
+      {!tvMode && needsUserGesture && (
         <div className="fixed bottom-4 left-4 z-50 pointer-events-none">
           <div className="bg-black/60 backdrop-blur-xl text-white px-3 py-2 rounded-xl shadow-2xl border border-white/10 flex items-center gap-2">
             <VolumeX className="h-4 w-4 text-primary" />
