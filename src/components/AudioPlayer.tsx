@@ -106,7 +106,8 @@ export const AudioPlayer = ({
     if (!music || !announcement) return null;
 
     try {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      const AudioCtx = window.AudioContext || (window as Window & typeof globalThis & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!AudioCtx) return null;
       const ctx: AudioContext = new AudioCtx();
 
       // Elementos <audio> sempre em volume máximo — o volume real vive no GainNode
@@ -402,12 +403,13 @@ export const AudioPlayer = ({
 
   // ========== Cleanup do AudioContext ao desmontar ==========
   useEffect(() => {
+    const nativeFadeFrames = nativeFadeFrameRef.current;
     return () => {
       if (audioCtxRef.current) {
         audioCtxRef.current.close().catch(() => {});
         audioCtxRef.current = null;
       }
-      Object.values(nativeFadeFrameRef.current).forEach((frame) => {
+      Object.values(nativeFadeFrames).forEach((frame) => {
         if (frame) cancelAnimationFrame(frame);
       });
     };
@@ -495,7 +497,7 @@ export const AudioPlayer = ({
       m.volume = isPlayingAnnouncementRef.current ? musicDuckVolumeRef.current : musicVolumeRef.current;
       m.play().then(() => setNeedsUserGesture(false)).catch(() => setNeedsUserGesture(true));
     }
-  }, [isMuted]);
+  }, [isMuted, tvMode]);
 
   const next = useCallback(() => {
     const n = musicIndexRef.current + 1;
