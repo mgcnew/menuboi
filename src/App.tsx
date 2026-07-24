@@ -10,6 +10,7 @@ import Slideshow from "./pages/Slideshow";
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
 import LinkTV from "./pages/LinkTV";
+import OAuthConsent from "./pages/OAuthConsent";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -27,6 +28,7 @@ const App = () => (
           <Route path="/tv" element={<TVStart />} />
           <Route path="/link" element={<LinkTV />} />
           <Route path="/slideshow" element={<Slideshow />} />
+          <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
           {/* Redirect old routes */}
           <Route path="/tv/fullscreen" element={<Navigate to="/slideshow" replace />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,32 +11,31 @@ import { Loader2, Lock } from "lucide-react";
 
 const Auth = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const redirectAfterAuth = () => {
+    const nextRaw = searchParams.get("next");
+    // Only allow same-origin relative paths
+    if (nextRaw && nextRaw.startsWith("/") && !nextRaw.startsWith("//")) {
+      window.location.href = nextRaw;
+      return;
+    }
+    const pendingCode = sessionStorage.getItem("pending_tv_code");
+    navigate(pendingCode ? "/link" : "/dashboard", { replace: true });
+  };
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        const pendingCode = sessionStorage.getItem("pending_tv_code");
-        if (pendingCode) {
-          navigate("/link", { replace: true });
-        } else {
-          navigate("/dashboard", { replace: true });
-        }
-      }
+      if (session) redirectAfterAuth();
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
-      if (session) {
-        const pendingCode = sessionStorage.getItem("pending_tv_code");
-        if (pendingCode) {
-          navigate("/link", { replace: true });
-        } else {
-          navigate("/dashboard", { replace: true });
-        }
-      }
+      if (session) redirectAfterAuth();
     });
     return () => subscription.unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate]);
 
   const handleSignIn = async (e: React.FormEvent) => {
