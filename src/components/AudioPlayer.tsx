@@ -253,6 +253,7 @@ export const AudioPlayer = ({
     musicErrorCountRef.current = 0;
     const next = musicIndexRef.current + 1;
     if (next >= musicQueueRef.current.length) {
+      // Fim da playlist: reembaralha e recomeça do zero (loop infinito)
       musicQueueRef.current = shuffle(musicQueueRef.current);
       playMusicIndex(0);
     } else {
@@ -260,20 +261,51 @@ export const AudioPlayer = ({
     }
   }, [playMusicIndex]);
 
+  const handleMusicPlaying = useCallback(() => {
+    musicErrorCountRef.current = 0;
+  }, []);
+
   const handleMusicError = useCallback(() => {
     musicErrorCountRef.current += 1;
     console.warn(`[AudioPlayer] Music error (${musicErrorCountRef.current})`);
-    if (musicErrorCountRef.current >= MAX_CONSECUTIVE_ERRORS) {
-      console.error("[AudioPlayer] Too many consecutive music errors, stopping.");
-      return;
+    const queue = musicQueueRef.current;
+    if (queue.length === 0) return;
+    // Nunca para de vez: se houver muitos erros seguidos, apenas espera mais antes de tentar de novo
+    const delay = musicErrorCountRef.current >= MAX_CONSECUTIVE_ERRORS ? 10000 : 500;
+    if (musicErrorCountRef.current >= MAX_CONSECUTIVE_ERRORS * 2) {
+      musicErrorCountRef.current = 0;
     }
     setTimeout(() => {
       const next = musicIndexRef.current + 1;
       if (musicQueueRef.current.length > 0) {
         playMusicIndex(next % musicQueueRef.current.length);
       }
-    }, 500);
+    }, delay);
   }, [playMusicIndex]);
+
+  // ========== Watchdog: garante que a música nunca fique parada ==========
+  useEffect(() => {
+    const check = () => {
+      const audio = musicRef.current;
+      if (!audio) return;
+      if (musicQueueRef.current.length === 0) return;
+      if (isPlayingAnnouncementRef.current) return;
+      if (!audio.src) {
+        playMusicIndex(musicIndexRef.current);
+        return;
+      }
+      if (audio.ended) {
+        handleMusicEnded();
+        return;
+      }
+      if (audio.paused) {
+        audio.play().catch(() => {});
+      }
+    };
+    const id = setInterval(check, 5000);
+    return () => clearInterval(id);
+  }, [playMusicIndex, handleMusicEnded]);
+
 
   // ========== LOCUÇÃO ==========
   const scheduleNextAnnouncement = useCallback(() => {
