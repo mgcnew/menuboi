@@ -563,7 +563,7 @@ export const AudioPlayer = ({
 
   return (
     <>
-      <audio ref={musicRef} onEnded={handleMusicEnded} onError={handleMusicError} preload="auto" autoPlay crossOrigin="anonymous" />
+      <audio ref={musicRef} onEnded={handleMusicEnded} onError={handleMusicError} onPlaying={handleMusicPlaying} preload="auto" autoPlay crossOrigin="anonymous" />
       <audio ref={announcementRef} onEnded={handleAnnouncementEnded} onError={handleAnnouncementError} preload="auto" autoPlay crossOrigin="anonymous" />
 
       {!tvMode && needsUserGesture && (
