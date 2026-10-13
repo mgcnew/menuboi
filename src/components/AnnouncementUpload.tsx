@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { Music } from "lucide-react";
+import { Mic, Upload } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Announcement } from "@/types/slideshow";
@@ -119,31 +119,32 @@ export const AnnouncementUpload = ({ onAnnouncementsUploaded }: AnnouncementUplo
 
   return (
     <div
-      className={`upload-area border-2 border-dashed rounded-xl p-8 text-center transition-all cursor-pointer shadow-sm ${isDragging ? 'border-primary bg-primary/5 shadow-inner scale-[0.99]' : 'border-muted-foreground/20 hover:border-primary/40 hover:bg-primary/5'} ${isUploading ? 'opacity-60' : ''}`}
+      className={`relative border-2 border-dashed rounded-lg p-5 transition-colors cursor-pointer ${isDragging ? 'border-primary bg-primary/5' : 'border-muted-foreground/20 hover:border-primary/40 hover:bg-primary/5'} ${isUploading ? 'opacity-60' : ''}`}
       onDrop={handleDrop}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
-      onClick={() => !isUploading && document.getElementById('announcement-input')?.click()}
     >
       <input
         id="announcement-input"
         type="file"
         multiple
         accept="audio/mpeg,audio/mp3,audio/wav,audio/ogg,audio/m4a"
+        aria-label="Adicionar locuções"
         onChange={handleFileSelect}
-        className="hidden"
+        disabled={isUploading}
+        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
       />
       
-      <div className="flex flex-col items-center space-y-4">
-        <div className={`p-4 rounded-full ${isDragging ? 'bg-primary/10' : 'bg-muted'}`}>
+      <div className="flex items-center gap-4">
+        <div className="shrink-0">
           {isUploading ? (
             <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full" />
           ) : (
-            <Music className={`h-8 w-8 ${isDragging ? 'text-primary' : 'text-muted-foreground'}`} />
+            <Mic className="h-7 w-7 text-primary" />
           )}
         </div>
         
-        <div className="text-center w-full">
+        <div className="min-w-0">
           {isUploading ? (
             <div className="space-y-2 max-w-xs mx-auto">
               <p className="text-sm font-medium">Enviando {uploadCurrent}/{uploadTotal}...</p>
@@ -151,9 +152,11 @@ export const AnnouncementUpload = ({ onAnnouncementsUploaded }: AnnouncementUplo
             </div>
           ) : (
             <>
-              <h3 className="text-lg font-medium mb-2">Arraste suas locuções aqui</h3>
-              <p className="text-muted-foreground mb-2">ou clique para selecionar arquivos</p>
-              <p className="text-sm text-muted-foreground">MP3, WAV, OGG, M4A • Máximo: 10MB por arquivo</p>
+              <h3 className="text-sm font-semibold mb-1">Adicionar locuções</h3>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Upload className="h-4 w-4" />
+                <span>MP3, WAV, OGG, M4A</span>
+              </div>
             </>
           )}
         </div>
