@@ -117,7 +117,7 @@ export const AudioUpload = ({ onAudiosUploaded }: AudioUploadProps) => {
       onDrop={handleDrop}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
-      className={`relative border-2 border-dashed rounded-xl p-12 transition-all cursor-pointer shadow-sm ${
+      className={`relative border-2 border-dashed rounded-lg p-5 transition-colors cursor-pointer ${
         isDragging 
           ? 'border-primary bg-primary/5 scale-[0.99] shadow-inner' 
           : 'border-muted-foreground/20 hover:border-primary/40 hover:bg-primary/5 hover:shadow-md'
@@ -127,13 +127,14 @@ export const AudioUpload = ({ onAudiosUploaded }: AudioUploadProps) => {
         type="file"
         multiple
         accept="audio/*"
+        aria-label="Adicionar músicas"
         onChange={(e) => e.target.files && handleFiles(e.target.files)}
         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
         disabled={isUploading}
       />
       
-      <div className="text-center">
-        <div className="flex justify-center mb-4">
+      <div className="flex items-center gap-4">
+        <div className="flex shrink-0 justify-center">
           {isUploading ? (
             <div className="w-full max-w-xs space-y-3">
               <div className="h-12 w-12 mx-auto animate-spin rounded-full border-4 border-primary border-t-transparent" />
@@ -141,21 +142,18 @@ export const AudioUpload = ({ onAudiosUploaded }: AudioUploadProps) => {
               <Progress value={progressPercent} className="h-2" />
             </div>
           ) : (
-            <Music className="h-12 w-12 text-muted-foreground" />
+            <Music className="h-7 w-7 text-primary" />
           )}
         </div>
         
         {!isUploading && (
-          <>
-            <h3 className="text-lg font-semibold mb-2">Upload de Músicas/Vinhetas</h3>
-            <p className="text-muted-foreground mb-4">
-              Arraste os arquivos de áudio aqui ou clique para selecionar
-            </p>
-            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+          <div className="min-w-0">
+            <h3 className="text-sm font-semibold mb-1">Adicionar músicas</h3>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Upload className="h-4 w-4" />
-              <span>Suporta MP3, WAV, OGG e outros formatos de áudio</span>
+              <span>MP3, WAV, OGG</span>
             </div>
-          </>
+          </div>
         )}
       </div>
     </div>

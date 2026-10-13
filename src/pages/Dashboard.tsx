@@ -15,7 +15,7 @@ import { PlaylistManager } from "@/components/PlaylistManager";
 import { SlideshowSettingsCard } from "@/components/SlideshowSettingsCard";
 import { ImageSettingsCard } from "@/components/ImageSettingsCard";
 import { AudioSettingsCard } from "@/components/AudioSettingsCard";
-import { Monitor, Play, Image, Music, Settings, ExternalLink, Sun, Moon, LogOut } from "lucide-react";
+import { Monitor, Play, Image, Music, Mic, ListMusic, Settings, ExternalLink, Sun, Moon, LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { TransitionType, DEFAULT_DISPLAY_TIME, DEFAULT_TRANSITION_TYPE, AudioTrack, Announcement, getCurrentDayOfWeek, DAY_OPTIONS } from "@/types/slideshow";
@@ -750,7 +750,7 @@ const Dashboard = () => {
       <main className="container mx-auto px-4 py-6 flex-1">
         <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
           {/* Main Content with Tabs */}
-          <div className="space-y-4">
+          <div className="min-w-0 space-y-4">
               <TabsContent value="media" className="space-y-4 mt-4">
                 <ImageUpload onImagesUploaded={handleImagesUploaded} />
                 
@@ -778,49 +778,59 @@ const Dashboard = () => {
               </TabsContent>
 
               {/* Audio Tab */}
-              <TabsContent value="audio" className="space-y-6 mt-4">
-                {/* Music Section */}
-                <div className="space-y-3">
-                  <h3 className="text-sm font-medium text-muted-foreground">Músicas</h3>
-                  <AudioUpload onAudiosUploaded={handleAudiosUploaded} />
-                  {audios.length > 0 && (
-                    <AudioGrid
-                      audios={audios}
-                      onAudioDelete={handleAudioDeleted}
-                      onAudioReorder={handleAudioReorder}
-                      onMultiDelete={handleMultiAudioDelete}
-                    />
-                  )}
-                </div>
-
-                {/* Announcements Section */}
-                <div className="space-y-3 pt-4 border-t">
-                  <div>
-                    <h3 className="text-sm font-medium text-muted-foreground">Locuções</h3>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Alternadas com as músicas automaticamente
-                    </p>
+              <TabsContent value="audio" className="mt-4">
+                <Tabs defaultValue="music" className="space-y-5">
+                  <div className="space-y-4 border-b pb-4">
+                    <h2 className="text-xl font-semibold">Biblioteca de áudio</h2>
+                    <TabsList aria-label="Categorias de áudio" className="grid h-auto w-full grid-cols-3 gap-1 bg-muted/60 p-1 sm:inline-flex sm:w-auto">
+                      <TabsTrigger value="music" className="min-w-0 gap-2 px-2 py-3 sm:px-5 data-[state=active]:text-primary">
+                        <Music className="hidden h-4 w-4 shrink-0 sm:block" />
+                        Músicas
+                        <span className="text-xs tabular-nums text-muted-foreground">{audios.length}</span>
+                      </TabsTrigger>
+                      <TabsTrigger value="announcements" className="min-w-0 gap-2 px-2 py-3 sm:px-5 data-[state=active]:text-primary">
+                        <Mic className="hidden h-4 w-4 shrink-0 sm:block" />
+                        Locuções
+                        <span className="text-xs tabular-nums text-muted-foreground">{announcements.length}</span>
+                      </TabsTrigger>
+                      <TabsTrigger value="playlists" className="min-w-0 gap-2 px-2 py-3 sm:px-5 data-[state=active]:text-primary">
+                        <ListMusic className="hidden h-4 w-4 shrink-0 sm:block" />
+                        Playlists
+                      </TabsTrigger>
+                    </TabsList>
                   </div>
-                  <AnnouncementUpload onAnnouncementsUploaded={handleAnnouncementsUploaded} />
-                  {announcements.length > 0 && (
-                    <AnnouncementGrid
-                      announcements={announcements}
-                      onAnnouncementDelete={handleAnnouncementDeleted}
-                      onAnnouncementReorder={handleAnnouncementReorder}
-                    />
-                  )}
-                </div>
 
-                {/* Playlists Section */}
-                <div className="space-y-3 pt-4 border-t">
-                  <div>
-                    <h3 className="text-sm font-medium text-muted-foreground">Playlists</h3>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Organize suas músicas em playlists
-                    </p>
-                  </div>
-                  <PlaylistManager />
-                </div>
+                  <TabsContent value="music" className="space-y-4">
+                    <AudioUpload onAudiosUploaded={handleAudiosUploaded} />
+                    {audios.length > 0 ? (
+                      <AudioGrid
+                        audios={audios}
+                        onAudioDelete={handleAudioDeleted}
+                        onAudioReorder={handleAudioReorder}
+                        onMultiDelete={handleMultiAudioDelete}
+                      />
+                    ) : (
+                      <p className="py-8 text-center text-sm text-muted-foreground">Nenhuma música adicionada.</p>
+                    )}
+                  </TabsContent>
+
+                  <TabsContent value="announcements" className="space-y-4">
+                    <AnnouncementUpload onAnnouncementsUploaded={handleAnnouncementsUploaded} />
+                    {announcements.length > 0 ? (
+                      <AnnouncementGrid
+                        announcements={announcements}
+                        onAnnouncementDelete={handleAnnouncementDeleted}
+                        onAnnouncementReorder={handleAnnouncementReorder}
+                      />
+                    ) : (
+                      <p className="py-8 text-center text-sm text-muted-foreground">Nenhuma locução adicionada.</p>
+                    )}
+                  </TabsContent>
+
+                  <TabsContent value="playlists">
+                    <PlaylistManager />
+                  </TabsContent>
+                </Tabs>
               </TabsContent>
 
               {/* Settings Tab */}
