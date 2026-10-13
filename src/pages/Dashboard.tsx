@@ -835,8 +835,30 @@ const Dashboard = () => {
 
               {/* Settings Tab */}
               <TabsContent value="settings" className="mt-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-6">
+                <Tabs defaultValue="images" className="space-y-5">
+                  <div className="space-y-4 border-b pb-4">
+                    <h2 className="text-xl font-semibold">Configurações</h2>
+                    <TabsList aria-label="Categorias de configurações" className="grid h-auto w-full grid-cols-4 gap-1 bg-muted/60 p-1 sm:inline-flex sm:w-auto">
+                      <TabsTrigger value="images" className="min-w-0 gap-2 px-2 py-3 sm:px-5 data-[state=active]:text-primary">
+                        <Image className="hidden h-4 w-4 shrink-0 sm:block" />
+                        Imagens
+                      </TabsTrigger>
+                      <TabsTrigger value="audio" className="min-w-0 gap-2 px-2 py-3 sm:px-5 data-[state=active]:text-primary">
+                        <Music className="hidden h-4 w-4 shrink-0 sm:block" />
+                        Áudio
+                      </TabsTrigger>
+                      <TabsTrigger value="appearance" className="min-w-0 gap-2 px-2 py-3 sm:px-5 data-[state=active]:text-primary">
+                        <Palette className="hidden h-4 w-4 shrink-0 sm:block" />
+                        Aparência
+                      </TabsTrigger>
+                      <TabsTrigger value="tv" className="min-w-0 gap-2 px-2 py-3 sm:px-5 data-[state=active]:text-primary">
+                        <Monitor className="hidden h-4 w-4 shrink-0 sm:block" />
+                        TV
+                      </TabsTrigger>
+                    </TabsList>
+                  </div>
+
+                  <TabsContent value="images" className="space-y-6 max-w-2xl">
                     <ImageSettingsCard
                       transitionTime={transitionTime}
                       onTransitionTimeChange={handleTransitionTimeChange}
@@ -845,15 +867,21 @@ const Dashboard = () => {
                       globalDisplayDays={globalDisplayDays}
                       onGlobalDisplayDaysChange={handleGlobalDisplayDaysChange}
                     />
-                    <SlideshowSettingsCard />
-                  </div>
-                  
-                  <div className="space-y-6">
+                  </TabsContent>
+
+                  <TabsContent value="audio" className="space-y-6 max-w-2xl">
                     <AudioSettingsCard />
+                  </TabsContent>
+
+                  <TabsContent value="appearance" className="space-y-6 max-w-2xl">
+                    <SlideshowSettingsCard />
+                  </TabsContent>
+
+                  <TabsContent value="tv" className="space-y-6 max-w-2xl">
                     <Card className="p-6 bg-card/50 backdrop-blur-sm border-primary/10">
                       <QRCodeDisplay compact title="Acesse na TV" />
                     </Card>
-                    
+
                     {images.length === 0 && (
                       <Card className="p-5 bg-primary/5 border-primary/20">
                         <h4 className="font-semibold text-primary mb-3">Primeiros Passos</h4>
@@ -865,8 +893,8 @@ const Dashboard = () => {
                         </ol>
                       </Card>
                     )}
-                  </div>
-                </div>
+                  </TabsContent>
+                </Tabs>
               </TabsContent>
           </div>
 
