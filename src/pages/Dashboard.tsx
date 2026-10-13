@@ -15,7 +15,7 @@ import { PlaylistManager } from "@/components/PlaylistManager";
 import { SlideshowSettingsCard } from "@/components/SlideshowSettingsCard";
 import { ImageSettingsCard } from "@/components/ImageSettingsCard";
 import { AudioSettingsCard } from "@/components/AudioSettingsCard";
-import { Monitor, Play, Image, Music, Mic, ListMusic, Settings, ExternalLink, Sun, Moon, LogOut } from "lucide-react";
+import { Monitor, Play, Image, Music, Mic, ListMusic, Settings, ExternalLink, Sun, Moon, LogOut, Palette } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { TransitionType, DEFAULT_DISPLAY_TIME, DEFAULT_TRANSITION_TYPE, AudioTrack, Announcement, getCurrentDayOfWeek, DAY_OPTIONS } from "@/types/slideshow";
