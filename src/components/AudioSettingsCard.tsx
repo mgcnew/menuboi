@@ -1,11 +1,8 @@
 import { useEffect, useState, useCallback } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { slideshowSettingsTable } from "@/lib/supabase-helpers";
-import { Music, Loader2, Volume2, Mic, VolumeX } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
+import { CommitNumberInput, SettingRow, SettingsSection, useSaveState } from "@/components/SettingsSection";
 
 export const AudioSettingsCard = () => {
   const [settingsId, setSettingsId] = useState<string | null>(null);
@@ -62,126 +59,97 @@ export const AudioSettingsCard = () => {
         console.error(error);
         toast({
           title: "Erro",
-          description: "Não foi possível salvar o intervalo.",
+          description: "Não foi possível salvar as configurações de áudio. Tente de novo.",
           variant: "destructive",
         });
         return;
       }
-      toast({
-        title: "Configurações salvas",
-        description: "As configurações de áudio foram atualizadas.",
-      });
     } finally {
       setSaving(false);
     }
   };
 
+  const saveState = useSaveState(saving);
+
+  const volumeRow = (
+    id: string,
+    label: string,
+    description: string,
+    value: number,
+    setValue: (v: number) => void,
+    commit: (v: number) => void,
+  ) => (
+    <SettingRow label={label} htmlFor={id} description={description}>
+      <div className="flex items-center gap-3">
+        <Slider
+          id={id}
+          aria-label={label}
+          value={[value * 100]}
+          min={0}
+          max={100}
+          step={1}
+          onValueChange={(vals) => setValue(vals[0] / 100)}
+          onValueCommit={(vals) => commit(vals[0] / 100)}
+          disabled={loading}
+        />
+        <span className="w-10 shrink-0 text-right text-sm tabular-nums text-muted-foreground">
+          {Math.round(value * 100)}%
+        </span>
+      </div>
+    </SettingRow>
+  );
+
   return (
-    <Card className="border-0 shadow-xl bg-card/70 backdrop-blur-md overflow-hidden rounded-2xl">
-      <CardHeader>
-        <div className="flex items-center gap-2">
-          <div className="bg-primary/10 p-2 rounded-lg">
-            <Music className="h-5 w-5 text-primary" />
-          </div>
-          <CardTitle className="text-xl font-bold tracking-tight">Música e Locuções</CardTitle>
-        </div>
-        <CardDescription>
-          A música toca continuamente em loop. A cada intervalo definido, uma locução é reproduzida e o volume da música abaixa suavemente.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="announcement-interval" className="text-sm font-medium">
-            Intervalo entre locuções
-          </Label>
-          <div className="flex items-center gap-2">
-            <Input
-              id="announcement-interval"
-              type="number"
-              min={1}
-              max={120}
-              value={interval}
-              onChange={(e) => setInterval(Math.max(1, parseInt(e.target.value) || 1))}
-              onBlur={() => persist({ interval })}
-              disabled={loading}
-              className="w-24"
-            />
-            <span className="text-sm text-muted-foreground">minutos</span>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Defina de 1 a 120 minutos. As locuções tocam em ordem aleatória sem repetir até completar a lista.
-          </p>
-        </div>
+    <SettingsSection
+      title="Música e locuções"
+      description="A música toca sem parar. A cada intervalo, uma locução entra e a música abaixa."
+      status={loading ? "idle" : saveState}
+    >
+      <SettingRow
+        label="Intervalo entre locuções"
+        htmlFor="announcement-interval"
+        description="De 1 a 120 minutos. As locuções tocam em ordem aleatória, sem repetir até passar por todas."
+      >
+        <CommitNumberInput
+          id="announcement-interval"
+          value={interval}
+          min={1}
+          max={120}
+          unit="minutos"
+          disabled={loading}
+          onCommit={(v) => {
+            setInterval(v);
+            persist({ interval: v });
+          }}
+        />
+      </SettingRow>
 
-        <div className="space-y-4 pt-4 border-t">
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <Label className="flex items-center gap-2 text-sm font-medium">
-                <Volume2 className="h-4 w-4" />
-                Volume da Música
-              </Label>
-              <span className="text-sm text-muted-foreground">{Math.round(musicVolume * 100)}%</span>
-            </div>
-            <Slider
-              value={[musicVolume * 100]}
-              min={0}
-              max={100}
-              step={1}
-              onValueChange={(vals) => setMusicVolume(vals[0] / 100)}
-              onValueCommit={(vals) => persist({ musicVolume: vals[0] / 100 })}
-              disabled={loading}
-            />
-          </div>
+      {volumeRow(
+        "music-volume",
+        "Volume da música",
+        "Volume normal da música ambiente.",
+        musicVolume,
+        setMusicVolume,
+        (v) => persist({ musicVolume: v }),
+      )}
 
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <Label className="flex items-center gap-2 text-sm font-medium">
-                <Mic className="h-4 w-4" />
-                Volume da Locução
-              </Label>
-              <span className="text-sm text-muted-foreground">{Math.round(announcementVolume * 100)}%</span>
-            </div>
-            <Slider
-              value={[announcementVolume * 100]}
-              min={0}
-              max={100}
-              step={1}
-              onValueChange={(vals) => setAnnouncementVolume(vals[0] / 100)}
-              onValueCommit={(vals) => persist({ announcementVolume: vals[0] / 100 })}
-              disabled={loading}
-            />
-          </div>
-        </div>
+      {volumeRow(
+        "announcement-volume",
+        "Volume da locução",
+        "Volume das locuções quando entram.",
+        announcementVolume,
+        setAnnouncementVolume,
+        (v) => persist({ announcementVolume: v }),
+      )}
 
-        <div className="space-y-3 pt-4 border-t">
-          <div className="flex items-center justify-between">
-            <Label className="flex items-center gap-2 text-sm font-medium">
-              <VolumeX className="h-4 w-4" />
-              Música durante Locução
-            </Label>
-            <span className="text-sm text-muted-foreground">{Math.round(musicDuckVolume * 100)}%</span>
-          </div>
-          <Slider
-            value={[musicDuckVolume * 100]}
-            min={0}
-            max={100}
-            step={1}
-            onValueChange={(vals) => setMusicDuckVolume(vals[0] / 100)}
-            onValueCommit={(vals) => persist({ musicDuckVolume: vals[0] / 100 })}
-            disabled={loading}
-          />
-          <p className="text-xs text-muted-foreground">
-            Volume da música enquanto uma locução está tocando. Use 0% para silenciar completamente a música durante a locução.
-          </p>
-        </div>
-
-        {(loading || saving) && (
-          <div className="flex items-center text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            {loading ? "Carregando..." : "Salvando..."}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+      {volumeRow(
+        "duck-volume",
+        "Música durante a locução",
+        "Quanto a música abaixa enquanto a locução toca. Use 0% para silenciar.",
+        musicDuckVolume,
+        setMusicDuckVolume,
+        (v) => persist({ musicDuckVolume: v }),
+      )}
+    </SettingsSection>
   );
 };

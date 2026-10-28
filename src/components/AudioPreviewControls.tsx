@@ -76,23 +76,24 @@ export const AudioPreviewControls = ({ bucket, filePath, fileName }: Props) => {
   return (
     <div className="flex items-center gap-1">
       <Button
-        variant="secondary"
+        variant="ghost"
         size="icon"
-        className="h-10 w-10 rounded-full shadow-sm active:scale-90 transition-all bg-primary/10 text-primary hover:bg-primary/20 border-0"
+        className="h-8 w-8 text-muted-foreground hover:text-foreground"
         onClick={togglePlay}
         title={playing ? "Pausar" : "Reproduzir"}
+        aria-label={playing ? `Pausar ${fileName}` : `Reproduzir ${fileName}`}
       >
-        {playing ? <Pause className="h-5 w-5 fill-current" /> : <Play className="h-5 w-5 fill-current" />}
+        {playing ? <Pause className="h-4 w-4 fill-current" /> : <Play className="h-4 w-4 fill-current" />}
       </Button>
       <Button
         variant="ghost"
         size="icon"
-        className="h-10 w-10 rounded-full hover:bg-muted active:scale-90 transition-all"
+        className="h-8 w-8 text-muted-foreground hover:text-foreground"
         onClick={handleDownload}
         disabled={downloading}
         title="Baixar arquivo"
       >
-        <Download className="h-5 w-5" />
+        <Download className="h-4 w-4" />
       </Button>
     </div>
   );

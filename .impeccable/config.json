@@ -1,0 +1,23 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "overused-font",
+        "value": "inter",
+        "createdAt": "2026-10-28T19:23:20.016Z",
+        "reason": "Claude: user chose the category-standard (canon) direction at Stripe Dashboard craft for an Operate surface; a workhorse UI face is intended"
+      },
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/assigned.html"
+        ],
+        "createdAt": "2026-10-28T19:23:40.584Z",
+        "reason": "Claude: unchosen decision-round sketch, not shipped UI"
+      }
+    ]
+  }
+}

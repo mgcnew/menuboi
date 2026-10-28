@@ -1,9 +1,24 @@
 import { useState } from "react";
 import { MenuItem } from "@/pages/Dashboard";
 import { Button } from "./ui/button";
-import { Badge } from "./ui/badge";
-import { Trash2, Eye, GripVertical, Settings, Play, Download } from "lucide-react";
-import { toast } from "sonner";
+import { Trash2, Eye, GripVertical, SlidersHorizontal, Play, Download, MoreHorizontal, ArrowUp, ArrowDown } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "./ui/alert-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { ImageConfigModal } from "./ImageConfigModal";
 import { DAY_OPTIONS, getCurrentDayOfWeek } from "@/types/slideshow";
@@ -13,12 +28,15 @@ interface ImageGridProps {
   onImageDelete: (imageId: string) => void;
   onImageReorder: (reorderedImages: MenuItem[]) => void;
   onImageUpdate: (updatedImage: MenuItem) => void;
+  filter?: 'all' | 'today' | 'other';
 }
 
-export const ImageGrid = ({ images, onImageDelete, onImageReorder, onImageUpdate }: ImageGridProps) => {
+export const ImageGrid = ({ images, onImageDelete, onImageReorder, onImageUpdate, filter = 'all' }: ImageGridProps) => {
   const [draggedItem, setDraggedItem] = useState<MenuItem | null>(null);
   const [previewImage, setPreviewImage] = useState<MenuItem | null>(null);
   const [configImage, setConfigImage] = useState<MenuItem | null>(null);
+  const [deleteImage, setDeleteImage] = useState<MenuItem | null>(null);
+  const [dropTargetId, setDropTargetId] = useState<string | null>(null);
 
   if (images.length === 0) {
     return null;
@@ -60,6 +78,16 @@ export const ImageGrid = ({ images, onImageDelete, onImageReorder, onImageUpdate
     setDraggedItem(null);
   };
 
+  const moveBy = (image: MenuItem, delta: number) => {
+    const from = sortedImages.findIndex(img => img.id === image.id);
+    const to = from + delta;
+    if (from < 0 || to < 0 || to >= sortedImages.length) return;
+    const next = [...sortedImages];
+    next.splice(from, 1);
+    next.splice(to, 0, image);
+    onImageReorder(next.map((img, index) => ({ ...img, order: index })));
+  };
+
   const handleDragEnd = () => {
     setDraggedItem(null);
   };
@@ -96,127 +124,194 @@ export const ImageGrid = ({ images, onImageDelete, onImageReorder, onImageUpdate
   const playsToday = (image: MenuItem) =>
     !image.displayDays || image.displayDays.length === 0 || image.displayDays.includes(today);
 
+  const isVisible = (image: MenuItem) =>
+    filter === 'all' || (filter === 'today' ? playsToday(image) : !playsToday(image));
+  const canReorder = filter === 'all';
+
+  const daysLabel = (image: MenuItem) => {
+    if (!image.displayDays || image.displayDays.length === 0 || image.displayDays.length === 7) {
+      return 'Todos os dias';
+    }
+    return DAY_OPTIONS
+      .filter(d => image.displayDays!.includes(d.value))
+      .map(d => d.short)
+      .join(', ');
+  };
+
+  const visibleImages = sortedImages.filter(isVisible);
+
   return (
     <>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {sortedImages.map((image, index) => {
+      {visibleImages.length === 0 ? (
+        <div className="rounded-lg border border-dashed px-6 py-10 text-center">
+          <p className="text-sm font-medium">
+            {filter === 'today' ? 'Nenhuma mídia passa hoje' : 'Todas as mídias passam hoje'}
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {filter === 'today'
+              ? 'Ajuste os dias de exibição de uma mídia para ela aparecer na TV.'
+              : 'Mídias agendadas para outros dias aparecem aqui.'}
+          </p>
+        </div>
+      ) : (
+      <ul className="grid grid-cols-1 gap-4 min-[480px]:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
+        {visibleImages.map((image) => {
           const active = playsToday(image);
+          const position = sortedImages.indexOf(image) + 1;
           return (
-          <div
+          <li
             key={image.id}
             className={`
-              relative group cursor-move rounded-xl overflow-hidden bg-card border shadow-sm
-              aspect-video transition-all duration-300 ease-out
-              ${draggedItem?.id === image.id ? 'opacity-50 scale-95 ring-4 ring-primary/20' : 'hover:shadow-xl hover:translate-y-[-4px] hover:border-primary/50'}
-              ${!active ? 'opacity-40 grayscale blur-[1px]' : ''}
+              group relative flex flex-col overflow-hidden rounded-lg border bg-card shadow-sm transition-[box-shadow,border-color,opacity] duration-150
+              ${canReorder ? 'cursor-grab active:cursor-grabbing' : ''}
+              ${draggedItem?.id === image.id ? 'opacity-40' : 'hover:border-foreground/20 hover:shadow-md'}
+              ${dropTargetId === image.id && draggedItem?.id !== image.id ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''}
             `}
-            draggable
+            draggable={canReorder}
             onDragStart={(e) => handleDragStart(e, image)}
-            onDragOver={handleDragOver}
-            onDrop={(e) => handleDrop(e, image)}
-            onDragEnd={handleDragEnd}
+            onDragOver={(e) => { handleDragOver(e); setDropTargetId(image.id); }}
+            onDragLeave={() => setDropTargetId(null)}
+            onDrop={(e) => { handleDrop(e, image); setDropTargetId(null); }}
+            onDragEnd={() => { handleDragEnd(); setDropTargetId(null); }}
           >
-            {/* Order Badge */}
-            <div className="absolute top-1 left-1 bg-black/70 text-white text-xs font-bold px-1.5 py-0.5 rounded z-10">
-              {index + 1}
-            </div>
+            <button
+              type="button"
+              className="relative block aspect-video w-full overflow-hidden bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+              onClick={() => setPreviewImage(image)}
+              aria-label={`Visualizar ${image.name}`}
+            >
+              {image.itemType === 'video' ? (
+                <video
+                  src={image.url}
+                  className={`h-full w-full object-cover ${active ? '' : 'opacity-60 grayscale'}`}
+                  muted
+                  playsInline
+                  preload="metadata"
+                />
+              ) : (
+                <img
+                  src={image.url}
+                  alt=""
+                  loading="lazy"
+                  className={`h-full w-full object-cover ${active ? '' : 'opacity-60 grayscale'}`}
+                />
+              )}
 
-            {/* Video indicator */}
-            {image.itemType === 'video' && (
-              <div className="absolute top-1 right-1 bg-black/70 text-white p-1 rounded z-10">
-                <Play className="h-3 w-3" />
+              <span className="absolute left-2 top-2 rounded bg-black/70 px-1.5 py-0.5 text-[11px] font-semibold tabular-nums text-white">
+                {position}
+              </span>
+
+              {image.itemType === 'video' && (
+                <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded bg-black/70 px-1.5 py-0.5 text-[11px] font-medium text-white">
+                  <Play className="h-3 w-3 fill-current" /> Vídeo
+                </span>
+              )}
+
+            </button>
+
+            <div className="flex flex-1 items-start gap-2 p-3">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium" title={image.name}>{image.name}</p>
+                <p className="mt-0.5 truncate text-xs tabular-nums text-muted-foreground">
+                  {image.displayTime}s · {daysLabel(image)}
+                </p>
+                <p className={`mt-2 inline-flex items-center gap-1.5 text-xs font-medium ${active ? 'text-primary' : 'text-muted-foreground'}`}>
+                  <span
+                    className={`h-1.5 w-1.5 rounded-full ${active ? 'bg-primary' : 'border border-muted-foreground'}`}
+                    aria-hidden="true"
+                  />
+                  {active ? 'No ar hoje' : 'Não passa hoje'}
+                </p>
               </div>
-            )}
 
-            {/* Day badges */}
-            {image.displayDays && image.displayDays.length < 7 && (
-              <div className="absolute bottom-1 left-1 z-10 flex gap-0.5 flex-wrap max-w-[calc(100%-8px)]">
-                {image.displayDays.map(day => {
-                  const dayOption = DAY_OPTIONS.find(d => d.value === day);
-                  return (
-                    <span key={day} className="bg-primary/80 text-primary-foreground text-[9px] px-1 py-0.5 rounded font-medium">
-                      {dayOption?.short || day}
-                    </span>
-                  );
-                })}
+              <div className="-mr-1 -mt-1 flex shrink-0 items-center">
+                {canReorder && (
+                  <span className="flex h-8 w-6 items-center justify-center text-muted-foreground" title="Arraste para mudar a ordem" aria-hidden="true">
+                    <GripVertical className="h-4 w-4" />
+                  </span>
+                )}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                  onClick={() => setConfigImage(image)}
+                  aria-label={`Ajustar ${image.name}`}
+                  title="Ajustar tempo, transição e dias"
+                >
+                  <SlidersHorizontal className="h-4 w-4" />
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                      aria-label={`Mais ações para ${image.name}`}
+                    >
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-44">
+                    <DropdownMenuItem onSelect={() => setPreviewImage(image)}>
+                      <Eye className="mr-2 h-4 w-4" /> Visualizar
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => setConfigImage(image)}>
+                      <SlidersHorizontal className="mr-2 h-4 w-4" /> Ajustar
+                    </DropdownMenuItem>
+                    {canReorder && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem disabled={position === 1} onSelect={() => moveBy(image, -1)}>
+                          <ArrowUp className="mr-2 h-4 w-4" /> Passar antes
+                        </DropdownMenuItem>
+                        <DropdownMenuItem disabled={position === sortedImages.length} onSelect={() => moveBy(image, 1)}>
+                          <ArrowDown className="mr-2 h-4 w-4" /> Passar depois
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                      </>
+                    )}
+                    <DropdownMenuItem onSelect={() => handleDownload(image)}>
+                      <Download className="mr-2 h-4 w-4" /> Baixar arquivo
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+                      onSelect={() => setDeleteImage(image)}
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" /> Excluir
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
-            )}
-
-            {/* Media */}
-            {image.itemType === 'video' ? (
-              <video
-                src={image.url}
-                className="w-full h-full object-cover"
-                muted
-                playsInline
-              />
-            ) : (
-              <img
-                src={image.url}
-                alt={image.name}
-                className="w-full h-full object-cover"
-              />
-            )}
-
-            {/* Hover Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col justify-end p-3">
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <Button
-                  variant="secondary"
-                  size="icon"
-                  className="h-9 w-9 rounded-full bg-white/10 backdrop-blur-md hover:bg-white/20 text-white border-white/20"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setPreviewImage(image);
-                  }}
-                >
-                  <Eye className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="icon"
-                  className="h-9 w-9 rounded-full bg-white/10 backdrop-blur-md hover:bg-white/20 text-white border-white/20"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setConfigImage(image);
-                  }}
-                >
-                  <Settings className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="icon"
-                  className="h-9 w-9 rounded-full bg-white/10 backdrop-blur-md hover:bg-white/20 text-white border-white/20"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDownload(image);
-                  }}
-                >
-                  <Download className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="icon"
-                  className="h-9 w-9 rounded-full shadow-lg"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onImageDelete(image.id);
-                  }}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-              <p className="text-[10px] text-white/70 truncate text-center font-medium">{image.name}</p>
             </div>
-
-            {/* Drag Handle */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 group-hover:opacity-100">
-              <GripVertical className="h-5 w-5 text-white/50" />
-            </div>
-          </div>
+          </li>
           );
         })}
-      </div>
+      </ul>
+      )}
+
+      <AlertDialog open={!!deleteImage} onOpenChange={(open) => !open && setDeleteImage(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir “{deleteImage?.name}”?</AlertDialogTitle>
+            <AlertDialogDescription>
+              A mídia sai da TV e o arquivo é apagado. Não dá para desfazer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (deleteImage) onImageDelete(deleteImage.id);
+                setDeleteImage(null);
+              }}
+            >
+              Excluir mídia
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Preview Modal */}
       {previewImage && (

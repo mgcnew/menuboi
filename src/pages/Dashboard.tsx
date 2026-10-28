@@ -1,8 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ImageUpload } from "@/components/ImageUpload";
 import { ImageGrid } from "@/components/ImageGrid";
@@ -15,14 +14,15 @@ import { PlaylistManager } from "@/components/PlaylistManager";
 import { SlideshowSettingsCard } from "@/components/SlideshowSettingsCard";
 import { ImageSettingsCard } from "@/components/ImageSettingsCard";
 import { AudioSettingsCard } from "@/components/AudioSettingsCard";
-import { Monitor, Play, Image, Music, Mic, ListMusic, Settings, ExternalLink, Sun, Moon, LogOut, Palette } from "lucide-react";
+import { Monitor, Image, Music, Mic, ListMusic, Settings, ExternalLink, Sun, Moon, LogOut, Palette, Upload, QrCode } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { TransitionType, DEFAULT_DISPLAY_TIME, DEFAULT_TRANSITION_TYPE, AudioTrack, Announcement, getCurrentDayOfWeek, DAY_OPTIONS } from "@/types/slideshow";
 import { supabase } from "@/integrations/supabase/client";
 import { menuItemsTable, audioTracksTable, announcementsTable } from "@/lib/supabase-helpers";
-import { Badge } from "@/components/ui/badge";
 import { QRCodeDisplay } from "@/components/QRCodeDisplay";
+import { PageHeader } from "@/components/PageHeader";
+import logo from "@/assets/logo-novo-boi.png";
 
 export interface MenuItem {
   id: string;
@@ -41,6 +41,9 @@ export interface MenuItem {
 
 export type MenuImage = MenuItem;
 
+type Section = 'media' | 'audio' | 'settings';
+type MediaFilter = 'all' | 'today' | 'other';
+
 const Dashboard = () => {
   const [images, setImages] = useState<MenuItem[]>([]);
   const [audios, setAudios] = useState<AudioTrack[]>([]);
@@ -52,8 +55,18 @@ const Dashboard = () => {
     const saved = localStorage.getItem('menuboard-dark-mode');
     return saved === 'true';
   });
+  const [section, setSection] = useState<Section>('media');
+  const [settingsTab, setSettingsTab] = useState('images');
+  const [mediaFilter, setMediaFilter] = useState<MediaFilter>('all');
+  const [previewId, setPreviewId] = useState<string | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  // Dashboard tokens live on <html> so dialogs and menus (portals) get them too
+  useEffect(() => {
+    document.documentElement.classList.add('theme-dashboard');
+    return () => document.documentElement.classList.remove('theme-dashboard');
+  }, []);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -182,11 +195,6 @@ const Dashboard = () => {
       }
 
       await loadImagesFromSupabase();
-      
-      toast({
-        title: "Imagens carregadas!",
-        description: `${newImages.length} imagem(ns) adicionada(s) com sucesso.`,
-      });
     } catch (error) {
       console.error('Error handling uploaded images:', error);
       toast({
@@ -673,292 +681,471 @@ const Dashboard = () => {
     window.open(slideshowUrl, '_blank');
   };
 
+  const openMediaPicker = () => document.getElementById('file-input')?.click();
+
   const today = getCurrentDayOfWeek();
   const todayLabel = DAY_OPTIONS.find(d => d.value === today)?.label || today;
-  const playingToday = images.filter(img =>
-    !img.displayDays || img.displayDays.length === 0 || img.displayDays.includes(today)
-  ).length;
+  const playsToday = (img: MenuItem) =>
+    !img.displayDays || img.displayDays.length === 0 || img.displayDays.includes(today);
+  const todayImages = useMemo(
+    () => [...images].sort((a, b) => a.order - b.order).filter(playsToday),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [images, today]
+  );
+  const playingToday = todayImages.length;
+  const cycleSeconds = todayImages.reduce((sum, img) => sum + (img.displayTime || 0), 0);
+
+  const goToTvSettings = () => {
+    setSection('settings');
+    setSettingsTab('tv');
+  };
+
+  const navItems: { id: Section; label: string; icon: typeof Image; count?: number }[] = [
+    { id: 'media', label: 'Mídia', icon: Image, count: images.length },
+    { id: 'audio', label: 'Áudio', icon: Music, count: audios.length + announcements.length },
+    { id: 'settings', label: 'Configurações', icon: Settings },
+  ];
+
+  const navButton = (item: typeof navItems[number], compact = false) => {
+    const Icon = item.icon;
+    const current = section === item.id;
+    return (
+      <button
+        key={item.id}
+        type="button"
+        onClick={() => setSection(item.id)}
+        aria-current={current ? 'page' : undefined}
+        className={`flex h-9 shrink-0 items-center gap-2.5 rounded-md px-2.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring
+          ${compact ? '' : 'w-full'}
+          ${current
+            ? 'bg-card text-foreground shadow-sm ring-1 ring-border'
+            : 'text-muted-foreground hover:bg-accent hover:text-foreground'}`}
+      >
+        <Icon className={`h-4 w-4 ${current ? 'text-primary' : ''}`} />
+        {item.label}
+        {!compact && item.count !== undefined && (
+          <span className="ml-auto text-xs tabular-nums text-muted-foreground">{item.count}</span>
+        )}
+      </button>
+    );
+  };
+
+  const brandMark = (
+    <div className="flex items-center gap-3">
+      <div
+        role="img"
+        aria-label="Novo Boi João Dias"
+        className="h-9 w-[84px] shrink-0 rounded-md bg-white bg-no-repeat ring-1 ring-border"
+        style={{ backgroundImage: `url(${logo})`, backgroundSize: '100%', backgroundPosition: '50% 33%' }}
+      />
+      <div className="min-w-0 leading-tight">
+        <p className="truncate text-sm font-semibold">Menu Board</p>
+        <p className="truncate text-xs text-muted-foreground">TVs da loja</p>
+      </div>
+    </div>
+  );
+
+  const themeButton = (
+    <Button
+      variant="ghost"
+      size="sm"
+      onClick={() => setIsDark(d => !d)}
+      className="h-8 gap-2 px-2 text-muted-foreground hover:text-foreground"
+      aria-label={isDark ? 'Usar tema claro' : 'Usar tema escuro'}
+    >
+      {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+      <span className="hidden lg:inline">{isDark ? 'Tema claro' : 'Tema escuro'}</span>
+    </Button>
+  );
+
+  const logoutButton = (
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={handleLogout}
+      className="h-8 w-8 text-muted-foreground hover:text-foreground"
+      aria-label="Sair"
+      title="Sair"
+    >
+      <LogOut className="h-4 w-4" />
+    </Button>
+  );
+
+  const subTabsList = "h-auto w-full justify-start gap-6 overflow-x-auto rounded-none border-b bg-transparent p-0 shadow-none";
+  const subTabsTrigger = "-mb-px gap-2 rounded-none border-b-2 border-transparent px-0 pb-3 pt-1 text-sm font-medium text-muted-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none";
+
+  const formatCycle = (seconds: number) => {
+    if (seconds < 60) return `${seconds} s`;
+    const m = Math.floor(seconds / 60);
+    const rest = seconds % 60;
+    return rest ? `${m} min ${rest} s` : `${m} min`;
+  };
+
+  const filterCounts = {
+    all: images.length,
+    today: playingToday,
+    other: images.length - playingToday,
+  };
 
   return (
-    <Tabs defaultValue="media" className="min-h-screen bg-background flex flex-col">
-      {/* Compact Header */}
-      <header className="border-b bg-card/70 backdrop-blur-md sticky top-0 z-50 shadow-sm">
-        <div className="container mx-auto px-4 py-3">
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <div className="flex items-center gap-6">
-              <div className="flex items-center gap-3">
-                <div className="bg-primary/10 p-2 rounded-lg">
-                  <Monitor className="h-6 w-6 text-primary" />
-                </div>
-                <h1 className="text-xl font-bold tracking-tight hidden sm:block">Menu Board</h1>
-              </div>
+    <div className="min-h-screen bg-background text-foreground lg:flex">
+      {/* Sidebar (desktop) */}
+      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r bg-sidebar px-3 py-4 lg:flex">
+        <div className="px-1.5 pb-6">{brandMark}</div>
 
-              {/* Tabs moved to Topbar */}
-              <TabsList className="bg-muted/50 p-1">
-                <TabsTrigger value="media" className="gap-2 px-5 font-semibold">
-                  <Image className="h-4 w-4" />
-                  <span className="hidden sm:inline">Mídia</span>
-                </TabsTrigger>
-                <TabsTrigger value="audio" className="gap-2 px-5 font-semibold">
-                  <Music className="h-4 w-4" />
-                  <span className="hidden sm:inline">Áudio</span>
-                </TabsTrigger>
-                <TabsTrigger value="settings" className="gap-2 px-5 font-semibold">
-                  <Settings className="h-4 w-4" />
-                  <span className="hidden sm:inline">Config</span>
-                </TabsTrigger>
-              </TabsList>
-            </div>
-            
-            <div className="flex items-center gap-3">
-              <div className="hidden lg:flex items-center gap-2 mr-2">
-                <Badge variant="secondary" className="font-semibold bg-secondary/50 hover:bg-secondary">
-                  Hoje: {todayLabel}
-                </Badge>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setIsDark(d => !d)}
-                className="h-10 w-10 rounded-full transition-all hover:bg-primary/5 active:scale-90"
-              >
-                {isDark ? <Sun className="h-5 w-5 text-yellow-500" /> : <Moon className="h-5 w-5 text-primary" />}
+        <nav aria-label="Seções do painel" className="space-y-1">
+          {navItems.map(item => navButton(item))}
+        </nav>
+
+        <div className="mt-auto space-y-3">
+          <div className="rounded-lg border bg-card p-3">
+            <p className="text-sm font-semibold tabular-nums">
+              {playingToday} de {images.length} {images.length === 1 ? 'mídia' : 'mídias'} no ar hoje
+            </p>
+            <div className="mt-3 space-y-1.5">
+              <Button size="sm" className="w-full gap-2" onClick={openSlideshow} disabled={images.length === 0}>
+                <ExternalLink className="h-4 w-4" /> Abrir na TV
               </Button>
-              <Button
-                onClick={openSlideshow}
-                size="sm"
-                disabled={images.length === 0}
-                className="gap-2 h-10 px-5 bg-primary shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all hover:translate-y-[-1px] active:translate-y-[0px] font-bold"
-              >
-                <Play className="h-4 w-4 fill-current" />
-                <span className="hidden sm:inline">Abrir Slideshow</span>
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleLogout}
-                className="h-10 w-10 rounded-full transition-all hover:bg-destructive/5 hover:text-destructive active:scale-90"
-                title="Sair"
-              >
-                <LogOut className="h-5 w-5" />
+              <Button size="sm" variant="ghost" className="w-full gap-2 text-muted-foreground hover:text-foreground" onClick={goToTvSettings}>
+                <QrCode className="h-4 w-4" /> Conectar uma TV
               </Button>
             </div>
           </div>
+          <div className="flex items-center justify-between border-t pt-3">
+            {themeButton}
+            {logoutButton}
+          </div>
         </div>
-      </header>
+      </aside>
 
-      <main className="container mx-auto px-4 py-6 flex-1">
-        <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-          {/* Main Content with Tabs */}
-          <div className="min-w-0 space-y-4">
-              <TabsContent value="media" className="space-y-4 mt-4">
-                <ImageUpload onImagesUploaded={handleImagesUploaded} />
-                
+      <div className="min-w-0 flex-1">
+        {/* Top bar (mobile and tablet) */}
+        <header className="sticky top-0 z-40 border-b bg-background/95 lg:hidden">
+          <div className="flex items-center justify-between gap-3 px-4 py-3 sm:px-6">
+            {brandMark}
+            <div className="flex items-center gap-1">
+              {themeButton}
+              {logoutButton}
+            </div>
+          </div>
+          <nav aria-label="Seções do painel" className="flex gap-1 overflow-x-auto px-4 pb-3 sm:px-6">
+            {navItems.map(item => navButton(item, true))}
+          </nav>
+        </header>
+
+        <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 lg:px-10 lg:py-8">
+          {section === 'media' && (
+            <>
+              <PageHeader
+                title="Mídia"
+                description="Imagens e vídeos que passam na TV da loja, na ordem da biblioteca."
+                actions={
+                  <>
+                    <Button variant="outline" className="gap-2" onClick={openSlideshow} disabled={images.length === 0}>
+                      <ExternalLink className="h-4 w-4" /> Abrir na TV
+                    </Button>
+                    <Button className="gap-2" onClick={openMediaPicker}>
+                      <Upload className="h-4 w-4" /> Enviar mídia
+                    </Button>
+                  </>
+                }
+              />
+
+              {images.length > 0 && (
+                <section aria-labelledby="today-heading" className="mb-10 overflow-hidden rounded-lg border bg-card shadow-sm">
+                  <div className="grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+                    <div className="border-b p-4 lg:border-b-0 lg:border-r">
+                      <SlideshowPreview images={images} className="border-0" onCurrentChange={setPreviewId} />
+                      <p className="mt-2 px-1 text-xs text-muted-foreground">
+                        Mostra a mesma sequência da TV, mas roda só aqui: pausar ou pular não muda a TV.
+                      </p>
+                    </div>
+
+                    <div className="flex min-w-0 flex-col p-5">
+                      <div className="flex items-center justify-between gap-3">
+                        <h2 id="today-heading" className="text-base font-semibold">Hoje na TV</h2>
+                        <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium">{todayLabel}</span>
+                      </div>
+
+                      <dl className="mt-4 grid grid-cols-3 gap-4 border-b pb-4">
+                        <div>
+                          <dt className="text-xs text-muted-foreground">No ar</dt>
+                          <dd className="mt-0.5 text-lg font-semibold tabular-nums">
+                            {playingToday}<span className="text-sm font-normal text-muted-foreground"> de {images.length}</span>
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs text-muted-foreground">Ciclo completo</dt>
+                          <dd className="mt-0.5 text-lg font-semibold tabular-nums">{formatCycle(cycleSeconds)}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs text-muted-foreground">Áudio</dt>
+                          <dd className="mt-0.5 text-lg font-semibold tabular-nums">
+                            {audios.length}<span className="text-sm font-normal text-muted-foreground"> músicas</span>
+                          </dd>
+                        </div>
+                      </dl>
+
+                      {todayImages.length > 0 ? (
+                        <ol className="mt-3 space-y-0.5" aria-label="Ordem de hoje">
+                          {todayImages.slice(0, 5).map((img, i) => {
+                            const onScreen = img.id === previewId;
+                            return (
+                            <li
+                              key={img.id}
+                              aria-current={onScreen ? 'true' : undefined}
+                              className={`-mx-2 flex items-center gap-3 rounded-md px-2 py-1.5 text-sm transition-colors ${onScreen ? 'bg-primary/5' : ''}`}
+                            >
+                              <span className={`w-4 text-right text-xs tabular-nums ${onScreen ? 'font-semibold text-primary' : 'text-muted-foreground'}`}>{i + 1}</span>
+                              <span className="h-7 w-12 shrink-0 overflow-hidden rounded bg-muted">
+                                {img.itemType === 'video' ? (
+                                  <video src={img.url} className="h-full w-full object-cover" muted preload="metadata" />
+                                ) : (
+                                  <img src={img.url} alt="" loading="lazy" className="h-full w-full object-cover" />
+                                )}
+                              </span>
+                              <span className={`min-w-0 flex-1 truncate ${onScreen ? 'font-medium' : ''}`}>{img.name}</span>
+                              <span className="text-xs tabular-nums text-muted-foreground">{img.displayTime}s</span>
+                            </li>
+                            );
+                          })}
+                        </ol>
+                      ) : (
+                        <p className="mt-4 text-sm text-muted-foreground">
+                          Nenhuma mídia está agendada para {todayLabel.toLowerCase()}. A TV fica sem slideshow até você mudar os dias de exibição.
+                        </p>
+                      )}
+
+                      {todayImages.length > 5 && (
+                        <Button
+                          variant="link"
+                          size="sm"
+                          className="mt-1 h-auto self-start px-0"
+                          onClick={() => setMediaFilter('today')}
+                        >
+                          Ver as {todayImages.length} mídias de hoje
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </section>
+              )}
+
+              <section aria-labelledby="library-heading">
                 {images.length > 0 && (
-                  <div className="space-y-3">
-                    <h3 className="text-sm font-medium text-muted-foreground">
-                      Imagens e Vídeos ({images.length})
-                    </h3>
+                  <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h2 id="library-heading" className="text-base font-semibold">Biblioteca</h2>
+                      <p className="text-sm text-muted-foreground">
+                        {mediaFilter === 'all'
+                          ? 'Arraste os cards, ou use o menu ⋯ de cada um, para mudar a ordem na TV.'
+                          : 'Volte para “Todas” para mudar a ordem.'}
+                      </p>
+                    </div>
+                    <ToggleGroup
+                      type="single"
+                      value={mediaFilter}
+                      onValueChange={(v) => v && setMediaFilter(v as MediaFilter)}
+                      aria-label="Filtrar mídias"
+                      className="rounded-md border bg-card p-0.5"
+                    >
+                      {([
+                        ['all', 'Todas'],
+                        ['today', 'No ar hoje'],
+                        ['other', 'Outros dias'],
+                      ] as [MediaFilter, string][]).map(([value, label]) => (
+                        <ToggleGroupItem
+                          key={value}
+                          value={value}
+                          size="sm"
+                          className="h-8 gap-1.5 px-3 text-sm data-[state=on]:bg-accent data-[state=on]:text-foreground"
+                        >
+                          {label}
+                          <span className="text-xs tabular-nums text-muted-foreground">{filterCounts[value]}</span>
+                        </ToggleGroupItem>
+                      ))}
+                    </ToggleGroup>
+                  </div>
+                )}
+
+                <div className="space-y-4">
+                  <ImageUpload onImagesUploaded={handleImagesUploaded} compact={images.length > 0} />
+
+                  {images.length > 0 ? (
                     <ImageGrid
                       images={images}
+                      filter={mediaFilter}
                       onImageDelete={handleImageDeleted}
                       onImageReorder={handleImageReorder}
                       onImageUpdate={handleImageUpdate}
                     />
-                  </div>
-                )}
+                  ) : (
+                    <ol className="grid gap-3 sm:grid-cols-3">
+                      {[
+                        ['Envie as mídias', 'Fotos do cardápio, promoções e vídeos da loja.'],
+                        ['Organize a TV', 'Arraste para ordenar e escolha os dias de cada mídia.'],
+                        ['Conecte a TV', 'Abra o link na TV da loja ou escaneie o QR code.'],
+                      ].map(([title, text], i) => (
+                        <li key={title} className="flex gap-3 rounded-lg border bg-card p-4">
+                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold tabular-nums">
+                            {i + 1}
+                          </span>
+                          <div>
+                            <p className="text-sm font-medium">{title}</p>
+                            <p className="mt-0.5 text-sm text-muted-foreground">{text}</p>
+                          </div>
+                        </li>
+                      ))}
+                    </ol>
+                  )}
+                </div>
+              </section>
+            </>
+          )}
 
-                {images.length === 0 && (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Image className="h-12 w-12 mx-auto mb-3 opacity-20" />
-                    <p>Nenhuma mídia carregada</p>
-                    <p className="text-sm">Faça upload para começar</p>
-                  </div>
-                )}
-              </TabsContent>
+          {section === 'audio' && (
+            <>
+              <PageHeader
+                title="Áudio"
+                description="Música ambiente e locuções que tocam junto com o slideshow."
+              />
+              <Tabs defaultValue="music" className="space-y-6">
+                <TabsList aria-label="Categorias de áudio" className={subTabsList}>
+                  <TabsTrigger value="music" className={subTabsTrigger}>
+                    <Music className="h-4 w-4" />
+                    Músicas
+                    <span className="text-xs tabular-nums text-muted-foreground">{audios.length}</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="announcements" className={subTabsTrigger}>
+                    <Mic className="h-4 w-4" />
+                    Locuções
+                    <span className="text-xs tabular-nums text-muted-foreground">{announcements.length}</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="playlists" className={subTabsTrigger}>
+                    <ListMusic className="h-4 w-4" />
+                    Playlists
+                  </TabsTrigger>
+                </TabsList>
 
-              {/* Audio Tab */}
-              <TabsContent value="audio" className="mt-4">
-                <Tabs defaultValue="music" className="space-y-5">
-                  <div className="space-y-4 border-b pb-4">
-                    <h2 className="text-xl font-semibold">Biblioteca de áudio</h2>
-                    <TabsList aria-label="Categorias de áudio" className="grid h-auto w-full grid-cols-3 gap-1 bg-muted/60 p-1 sm:inline-flex sm:w-auto">
-                      <TabsTrigger value="music" className="min-w-0 gap-2 px-2 py-3 sm:px-5 data-[state=active]:text-primary">
-                        <Music className="hidden h-4 w-4 shrink-0 sm:block" />
-                        Músicas
-                        <span className="text-xs tabular-nums text-muted-foreground">{audios.length}</span>
-                      </TabsTrigger>
-                      <TabsTrigger value="announcements" className="min-w-0 gap-2 px-2 py-3 sm:px-5 data-[state=active]:text-primary">
-                        <Mic className="hidden h-4 w-4 shrink-0 sm:block" />
-                        Locuções
-                        <span className="text-xs tabular-nums text-muted-foreground">{announcements.length}</span>
-                      </TabsTrigger>
-                      <TabsTrigger value="playlists" className="min-w-0 gap-2 px-2 py-3 sm:px-5 data-[state=active]:text-primary">
-                        <ListMusic className="hidden h-4 w-4 shrink-0 sm:block" />
-                        Playlists
-                      </TabsTrigger>
-                    </TabsList>
-                  </div>
-
-                  <TabsContent value="music" className="space-y-4">
-                    <AudioUpload onAudiosUploaded={handleAudiosUploaded} />
-                    {audios.length > 0 ? (
-                      <AudioGrid
-                        audios={audios}
-                        onAudioDelete={handleAudioDeleted}
-                        onAudioReorder={handleAudioReorder}
-                        onMultiDelete={handleMultiAudioDelete}
-                      />
-                    ) : (
-                      <p className="py-8 text-center text-sm text-muted-foreground">Nenhuma música adicionada.</p>
-                    )}
-                  </TabsContent>
-
-                  <TabsContent value="announcements" className="space-y-4">
-                    <AnnouncementUpload onAnnouncementsUploaded={handleAnnouncementsUploaded} />
-                    {announcements.length > 0 ? (
-                      <AnnouncementGrid
-                        announcements={announcements}
-                        onAnnouncementDelete={handleAnnouncementDeleted}
-                        onAnnouncementReorder={handleAnnouncementReorder}
-                      />
-                    ) : (
-                      <p className="py-8 text-center text-sm text-muted-foreground">Nenhuma locução adicionada.</p>
-                    )}
-                  </TabsContent>
-
-                  <TabsContent value="playlists">
-                    <PlaylistManager />
-                  </TabsContent>
-                </Tabs>
-              </TabsContent>
-
-              {/* Settings Tab */}
-              <TabsContent value="settings" className="mt-4">
-                <Tabs defaultValue="images" className="space-y-5">
-                  <div className="space-y-4 border-b pb-4">
-                    <h2 className="text-xl font-semibold">Configurações</h2>
-                    <TabsList aria-label="Categorias de configurações" className="grid h-auto w-full grid-cols-4 gap-1 bg-muted/60 p-1 sm:inline-flex sm:w-auto">
-                      <TabsTrigger value="images" className="min-w-0 gap-2 px-2 py-3 sm:px-5 data-[state=active]:text-primary">
-                        <Image className="hidden h-4 w-4 shrink-0 sm:block" />
-                        Imagens
-                      </TabsTrigger>
-                      <TabsTrigger value="audio" className="min-w-0 gap-2 px-2 py-3 sm:px-5 data-[state=active]:text-primary">
-                        <Music className="hidden h-4 w-4 shrink-0 sm:block" />
-                        Áudio
-                      </TabsTrigger>
-                      <TabsTrigger value="appearance" className="min-w-0 gap-2 px-2 py-3 sm:px-5 data-[state=active]:text-primary">
-                        <Palette className="hidden h-4 w-4 shrink-0 sm:block" />
-                        Aparência
-                      </TabsTrigger>
-                      <TabsTrigger value="tv" className="min-w-0 gap-2 px-2 py-3 sm:px-5 data-[state=active]:text-primary">
-                        <Monitor className="hidden h-4 w-4 shrink-0 sm:block" />
-                        TV
-                      </TabsTrigger>
-                    </TabsList>
-                  </div>
-
-                  <TabsContent value="images" className="space-y-6 max-w-2xl">
-                    <ImageSettingsCard
-                      transitionTime={transitionTime}
-                      onTransitionTimeChange={handleTransitionTimeChange}
-                      globalTransitionType={globalTransitionType}
-                      onGlobalTransitionTypeChange={handleGlobalTransitionTypeChange}
-                      globalDisplayDays={globalDisplayDays}
-                      onGlobalDisplayDaysChange={handleGlobalDisplayDaysChange}
+                <TabsContent value="music" className="mt-0 space-y-4">
+                  <AudioUpload onAudiosUploaded={handleAudiosUploaded} />
+                  {audios.length > 0 ? (
+                    <AudioGrid
+                      audios={audios}
+                      onAudioDelete={handleAudioDeleted}
+                      onAudioReorder={handleAudioReorder}
+                      onMultiDelete={handleMultiAudioDelete}
                     />
-                  </TabsContent>
+                  ) : (
+                    <p className="rounded-lg border border-dashed px-6 py-8 text-center text-sm text-muted-foreground">
+                      Nenhuma música ainda. Envie arquivos MP3 para a loja ter som ambiente.
+                    </p>
+                  )}
+                </TabsContent>
 
-                  <TabsContent value="audio" className="space-y-6 max-w-2xl">
-                    <AudioSettingsCard />
-                  </TabsContent>
+                <TabsContent value="announcements" className="mt-0 space-y-4">
+                  <AnnouncementUpload onAnnouncementsUploaded={handleAnnouncementsUploaded} />
+                  {announcements.length > 0 ? (
+                    <AnnouncementGrid
+                      announcements={announcements}
+                      onAnnouncementDelete={handleAnnouncementDeleted}
+                      onAnnouncementReorder={handleAnnouncementReorder}
+                    />
+                  ) : (
+                    <p className="rounded-lg border border-dashed px-6 py-8 text-center text-sm text-muted-foreground">
+                      Nenhuma locução ainda. Elas entram entre as músicas no intervalo definido em Configurações › Áudio.
+                    </p>
+                  )}
+                </TabsContent>
 
-                  <TabsContent value="appearance" className="space-y-6 max-w-2xl">
-                    <SlideshowSettingsCard />
-                  </TabsContent>
+                <TabsContent value="playlists" className="mt-0">
+                  <PlaylistManager />
+                </TabsContent>
+              </Tabs>
+            </>
+          )}
 
-                  <TabsContent value="tv" className="space-y-6 max-w-2xl">
-                    <Card className="p-6 bg-card/50 backdrop-blur-sm border-primary/10">
-                      <QRCodeDisplay compact title="Acesse na TV" />
-                    </Card>
+          {section === 'settings' && (
+            <>
+              <PageHeader
+                title="Configurações"
+                description="Como a TV exibe as mídias, toca o áudio e aparece na loja."
+              />
+              <Tabs value={settingsTab} onValueChange={setSettingsTab} className="space-y-6">
+                <TabsList aria-label="Categorias de configurações" className={subTabsList}>
+                  <TabsTrigger value="images" className={subTabsTrigger}>
+                    <Image className="h-4 w-4" />
+                    Exibição
+                  </TabsTrigger>
+                  <TabsTrigger value="audio" className={subTabsTrigger}>
+                    <Music className="h-4 w-4" />
+                    Áudio
+                  </TabsTrigger>
+                  <TabsTrigger value="appearance" className={subTabsTrigger}>
+                    <Palette className="h-4 w-4" />
+                    Aparência
+                  </TabsTrigger>
+                  <TabsTrigger value="tv" className={subTabsTrigger}>
+                    <Monitor className="h-4 w-4" />
+                    Conectar TV
+                  </TabsTrigger>
+                </TabsList>
 
-                    {images.length === 0 && (
-                      <Card className="p-5 bg-primary/5 border-primary/20">
-                        <h4 className="font-semibold text-primary mb-3">Primeiros Passos</h4>
-                        <ol className="text-sm text-muted-foreground space-y-2 list-decimal list-inside">
-                          <li>Faça upload das suas imagens na aba Mídia</li>
-                          <li>Configure o tempo de transição</li>
-                          <li>Clique em "Abrir Slideshow"</li>
-                          <li>Acesse o link na TV</li>
-                        </ol>
-                      </Card>
-                    )}
-                  </TabsContent>
-                </Tabs>
-              </TabsContent>
-          </div>
+                <TabsContent value="images" className="mt-0 max-w-3xl">
+                  <ImageSettingsCard
+                    transitionTime={transitionTime}
+                    onTransitionTimeChange={handleTransitionTimeChange}
+                    globalTransitionType={globalTransitionType}
+                    onGlobalTransitionTypeChange={handleGlobalTransitionTypeChange}
+                    globalDisplayDays={globalDisplayDays}
+                    onGlobalDisplayDaysChange={handleGlobalDisplayDaysChange}
+                  />
+                </TabsContent>
 
-          {/* Sticky Sidebar */}
-          <div className="hidden lg:block">
-            <div className="sticky top-24 space-y-6">
-              {/* Preview */}
-              <Card className="overflow-hidden border-0 shadow-xl bg-card/80 backdrop-blur-sm">
-                <div className="bg-primary/5 px-4 py-2 border-b border-primary/10">
-                   <h3 className="text-xs font-bold uppercase tracking-wider text-primary">Preview em Tempo Real</h3>
-                </div>
-                <div className="p-4">
-                  <SlideshowPreview images={images} />
-                </div>
-              </Card>
+                <TabsContent value="audio" className="mt-0 max-w-3xl">
+                  <AudioSettingsCard />
+                </TabsContent>
 
-              {/* Quick Stats */}
-              <Card className="p-5 border-0 shadow-lg bg-card/80 backdrop-blur-sm">
-                <h3 className="text-sm font-bold mb-4 flex items-center gap-2">
-                  <div className="w-1.5 h-4 bg-primary rounded-full"></div>
-                  Resumo Geral
-                </h3>
-                <div className="space-y-4 text-sm">
-                  <div className="flex justify-between items-center p-2 rounded-lg bg-muted/30">
-                    <span className="text-muted-foreground flex items-center gap-2">
-                       <Image className="h-3.5 w-3.5" /> Mídias Totais
-                    </span>
-                    <span className="font-bold text-base">{images.length}</span>
-                  </div>
-                  <div className="flex justify-between items-center p-2 rounded-lg bg-primary/5 border border-primary/10">
-                    <span className="text-primary font-medium flex items-center gap-2">
-                       <Play className="h-3.5 w-3.5" /> Tocando Hoje
-                    </span>
-                    <span className="font-bold text-base text-primary">{playingToday}</span>
-                  </div>
-                  <div className="flex justify-between items-center p-2 rounded-lg bg-muted/30">
-                    <span className="text-muted-foreground flex items-center gap-2">
-                       <Music className="h-3.5 w-3.5" /> Áudios
-                    </span>
-                    <span className="font-bold text-base">{audios.length}</span>
-                  </div>
-                  <div className="flex justify-between items-center p-2 rounded-lg bg-muted/30">
-                    <span className="text-muted-foreground flex items-center gap-2">
-                       <Settings className="h-3.5 w-3.5" /> Intervalo
-                    </span>
-                    <span className="font-bold text-base">{transitionTime}s</span>
-                  </div>
-                </div>
-              </Card>
+                <TabsContent value="appearance" className="mt-0 max-w-3xl">
+                  <SlideshowSettingsCard />
+                </TabsContent>
 
-              {/* Quick Action */}
-              <Button
-                onClick={openSlideshow}
-                className="w-full h-14 gap-3 text-base font-bold shadow-xl shadow-primary/20 hover:shadow-primary/40 transition-all hover:translate-y-[-2px]"
-                disabled={images.length === 0}
-              >
-                <ExternalLink className="h-5 w-5" />
-                Transmitir para TV
-              </Button>
-            </div>
-          </div>
-        </div>
-      </main>
-    </Tabs>
+                <TabsContent value="tv" className="mt-0 max-w-3xl">
+                  <Card className="hover:shadow-sm">
+                    <div className="border-b px-6 py-4">
+                      <h2 className="text-base font-semibold">Conectar uma TV</h2>
+                      <p className="mt-0.5 text-sm text-muted-foreground">
+                        Qualquer TV com navegador pode exibir o slideshow da loja.
+                      </p>
+                    </div>
+                    <div className="grid gap-6 p-6 sm:grid-cols-[minmax(0,1fr)_auto]">
+                      <ol className="space-y-4 text-sm">
+                        {[
+                          ['Abra o navegador da TV', 'Na Smart TV, Fire TV ou TV Box, abra o navegador de internet.'],
+                          ['Acesse o endereço', 'Digite o link abaixo ou escaneie o QR code com o celular para enviar à TV.'],
+                          ['Deixe em tela cheia', 'O slideshow começa sozinho e se atualiza quando você muda algo aqui.'],
+                        ].map(([title, text], i) => (
+                          <li key={title} className="flex gap-3">
+                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold tabular-nums">
+                              {i + 1}
+                            </span>
+                            <div>
+                              <p className="font-medium">{title}</p>
+                              <p className="mt-0.5 text-muted-foreground">{text}</p>
+                            </div>
+                          </li>
+                        ))}
+                      </ol>
+                      <QRCodeDisplay compact title="Link da TV" />
+                    </div>
+                  </Card>
+                </TabsContent>
+              </Tabs>
+            </>
+          )}
+        </main>
+      </div>
+    </div>
   );
 };
 

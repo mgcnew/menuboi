@@ -29,15 +29,15 @@ export const QRCodeDisplay = ({
 
   if (compact) {
     return (
-      <div className="flex items-center gap-4 p-4 bg-primary/5 rounded-xl border border-primary/10">
-        <div className="bg-white p-2 rounded-lg flex-shrink-0">
-          <QRCodeSVG value={tvUrl} size={80} level="M" />
+      <div className="flex flex-col items-center gap-3 sm:w-48">
+        <div className="rounded-lg border bg-white p-3">
+          <QRCodeSVG value={tvUrl} size={136} level="M" />
         </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-foreground">{title}</p>
-          <code className="text-xs font-mono text-primary break-all">{tvUrl}</code>
-          <Button variant="ghost" size="sm" className="mt-1 h-7 text-xs gap-1" onClick={copyUrl}>
-            <Copy className="h-3 w-3" /> Copiar
+        <div className="w-full min-w-0 text-center">
+          <p className="text-xs text-muted-foreground">{title}</p>
+          <code className="mt-0.5 block truncate font-mono text-xs font-medium" title={tvUrl}>{tvUrl}</code>
+          <Button variant="outline" size="sm" className="mt-2 h-8 w-full gap-1.5" onClick={copyUrl}>
+            <Copy className="h-3.5 w-3.5" /> Copiar link
           </Button>
         </div>
       </div>

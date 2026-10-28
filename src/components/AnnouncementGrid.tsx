@@ -2,12 +2,11 @@ import { useEffect, useState } from "react";
 import { DndContext, closestCenter, DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { GripVertical, Music, Trash2 } from "lucide-react";
+import { GripVertical, Music } from "lucide-react";
 import { Announcement } from "@/types/slideshow";
 import { AudioPreviewControls } from "@/components/AudioPreviewControls";
 import { Pagination } from "@/components/Pagination";
+import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
 
 interface AnnouncementGridProps {
   announcements: Announcement[];
@@ -38,45 +37,45 @@ const SortableAnnouncementItem = ({
   };
 
   return (
-    <Card
+    <li
       ref={setNodeRef}
       style={style}
-      className="p-4 flex items-center space-x-4 bg-card/50 backdrop-blur-sm border shadow-sm hover:shadow-md hover:bg-card hover:border-primary/30 transition-all rounded-xl"
+      className="flex items-center gap-3 px-3 py-2.5 transition-colors hover:bg-muted/40 sm:px-4"
     >
-      <div
+      <button
         {...attributes}
         {...listeners}
-        className="cursor-grab active:cursor-grabbing"
+        className="cursor-grab touch-none text-muted-foreground hover:text-foreground active:cursor-grabbing"
+        aria-label={`Mover ${announcement.name}`}
       >
-        <GripVertical className="h-5 w-5 text-muted-foreground" />
-      </div>
+        <GripVertical className="h-4 w-4" />
+      </button>
 
-      <div className="flex-shrink-0 w-11 h-11 bg-primary/10 rounded-xl flex items-center justify-center shadow-inner">
-        <Music className="h-5 w-5 text-primary" />
-      </div>
+      <span className="w-6 shrink-0 text-right text-xs tabular-nums text-muted-foreground">
+        {announcement.order + 1}
+      </span>
 
-      <div className="flex-1 min-w-0">
-        <p className="font-medium truncate">{announcement.name}</p>
-        <p className="text-sm text-muted-foreground">
-          {new Date(announcement.uploadedAt).toLocaleDateString()}
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium">{announcement.name}</p>
+        <p className="text-xs text-muted-foreground">
+          Enviada em {new Date(announcement.uploadedAt).toLocaleDateString("pt-BR")}
         </p>
       </div>
 
-      <AudioPreviewControls
-        bucket="announcements"
-        filePath={announcement.url}
-        fileName={announcement.name}
-      />
-
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={() => onDelete(announcement.id)}
-        className="flex-shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-      >
-        <Trash2 className="h-4 w-4" />
-      </Button>
-    </Card>
+      <div className="flex shrink-0 items-center gap-1">
+        <AudioPreviewControls
+          bucket="announcements"
+          filePath={announcement.url}
+          fileName={announcement.name}
+        />
+        <ConfirmDeleteButton
+          itemName={announcement.name}
+          description="A locução deixa de tocar na loja e o arquivo é apagado. Não dá para desfazer."
+          confirmLabel="Excluir locução"
+          onConfirm={() => onDelete(announcement.id)}
+        />
+      </div>
+    </li>
   );
 };
 
@@ -124,10 +123,13 @@ export const AnnouncementGrid = ({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
+      <p className="text-sm text-muted-foreground">
+        {announcements.length} {announcements.length === 1 ? "locução" : "locuções"} · arraste pela alça para ordenar
+      </p>
       <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={paged.map(a => a.id)} strategy={verticalListSortingStrategy}>
-          <div className="space-y-3">
+          <ul className="divide-y overflow-hidden rounded-lg border bg-card shadow-sm">
             {paged.map((announcement) => (
               <SortableAnnouncementItem
                 key={announcement.id}
@@ -135,7 +137,7 @@ export const AnnouncementGrid = ({
                 onDelete={onAnnouncementDelete}
               />
             ))}
-          </div>
+          </ul>
         </SortableContext>
       </DndContext>
       <Pagination

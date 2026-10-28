@@ -9,6 +9,8 @@ import { Badge } from "@/components/ui/badge";
 
 interface ImageUploadProps {
   onImagesUploaded: (images: MenuItem[]) => void;
+  /** Slim single-line dropzone, used once the library has items. */
+  compact?: boolean;
 }
 
 const MAX_DIMENSION = 1920;
@@ -87,7 +89,7 @@ interface CompressionInfo {
   fileName: string;
 }
 
-export const ImageUpload = ({ onImagesUploaded }: ImageUploadProps) => {
+export const ImageUpload = ({ onImagesUploaded, compact = false }: ImageUploadProps) => {
   const [isDragOver, setIsDragOver] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadCurrent, setUploadCurrent] = useState(0);
@@ -232,46 +234,66 @@ export const ImageUpload = ({ onImagesUploaded }: ImageUploadProps) => {
 
   const progressPercent = uploadTotal > 0 ? (uploadCurrent / uploadTotal) * 100 : 0;
 
+  const openPicker = () => !isUploading && document.getElementById('file-input')?.click();
+
   return (
     <div className="space-y-3">
       <div
+        role="button"
+        tabIndex={0}
+        aria-label="Enviar imagens ou vídeos"
         className={`
-          relative border-2 border-dashed rounded-xl p-8 text-center transition-all cursor-pointer shadow-sm
-          ${isDragOver 
-            ? 'border-primary bg-primary/5 shadow-inner scale-[0.99]' 
-            : 'border-muted-foreground/20 hover:border-primary/40 hover:bg-primary/5 hover:shadow-md'
+          relative cursor-pointer rounded-lg border border-dashed transition-colors
+          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background
+          ${compact ? 'px-4 py-3' : 'px-6 py-12 text-center'}
+          ${isDragOver
+            ? 'border-primary bg-primary/5'
+            : 'border-input bg-card hover:border-foreground/30 hover:bg-muted/40'
           }
         `}
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
-        onClick={() => !isUploading && document.getElementById('file-input')?.click()}
+        onClick={openPicker}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            openPicker();
+          }
+        }}
       >
-        <div className="flex flex-col items-center gap-2">
-          {isUploading ? (
-            <div className="w-full space-y-3">
-              <div className="flex items-center justify-center gap-2">
-                <Loader2 className="h-5 w-5 text-primary animate-spin" />
-                <p className="text-sm font-medium">
-                  Enviando {uploadCurrent}/{uploadTotal}...
-                </p>
-              </div>
-              <Progress value={progressPercent} className="h-2" />
+        {isUploading ? (
+          <div className={`space-y-2 ${compact ? '' : 'mx-auto max-w-sm'}`}>
+            <div className={`flex items-center gap-2 ${compact ? '' : 'justify-center'}`}>
+              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+              <p className="text-sm font-medium tabular-nums">
+                Enviando {uploadCurrent} de {uploadTotal}…
+              </p>
             </div>
-          ) : (
-            <>
-              <Upload className={`h-8 w-8 ${isDragOver ? 'text-primary' : 'text-muted-foreground'}`} />
-              <div>
-                <p className="text-sm font-medium">
-                  Arraste arquivos aqui ou clique para selecionar
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  JPG, PNG, WebP, MP4, WebM
-                </p>
-              </div>
-            </>
-          )}
-        </div>
+            <Progress value={progressPercent} className="h-1.5" />
+          </div>
+        ) : compact ? (
+          <div className="flex items-center gap-3">
+            <Upload className={`h-4 w-4 shrink-0 ${isDragOver ? 'text-primary' : 'text-muted-foreground'}`} />
+            <p className="text-sm">
+              <span className="font-medium">Arraste arquivos aqui</span>
+              <span className="text-muted-foreground"> ou clique para escolher · JPG, PNG, WebP, MP4, WebM</span>
+            </p>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-primary/10">
+              <ImageIcon className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <p className="text-base font-semibold">Envie a primeira mídia</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Fotos do cardápio, promoções ou vídeos. Arraste para cá ou clique para escolher.
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">JPG, PNG, WebP, MP4 e WebM · imagens são otimizadas no envio</p>
+            </div>
+          </div>
+        )}
 
         <input
           id="file-input"

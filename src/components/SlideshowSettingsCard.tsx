@@ -1,22 +1,14 @@
 import { useState, useEffect, useCallback } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { SettingRow, SettingsSection, useSaveState } from "@/components/SettingsSection";
 import { useToast } from "@/hooks/use-toast";
-import {
-  SlideshowSettings,
-  WidgetPosition,
-  POSITION_OPTIONS,
-} from "@/types/slideshow";
+import { SlideshowSettings, WidgetPosition } from "@/types/slideshow";
 import { slideshowSettingsTable } from "@/lib/supabase-helpers";
-import { MessageSquare, Loader2, Sun, Moon, Layout, Palette } from "lucide-react";
+import { Sun, Moon } from "lucide-react";
 
 export const SlideshowSettingsCard = () => {
   const [settings, setSettings] = useState<SlideshowSettings | null>(null);
@@ -90,17 +82,13 @@ export const SlideshowSettingsCard = () => {
         console.error("Error saving settings:", error);
         toast({
           title: "Erro",
-          description: "Não foi possível salvar as configurações.",
+          description: "Não foi possível salvar a aparência da TV. Tente de novo.",
           variant: "destructive",
         });
         return;
       }
 
       setSettings({ ...settings, ...updates });
-      toast({
-        title: "Mensagem salva",
-        description: "As alterações serão aplicadas no slideshow.",
-      });
     } catch (error) {
       console.error("Error saving settings:", error);
     } finally {
@@ -108,97 +96,83 @@ export const SlideshowSettingsCard = () => {
     }
   };
 
+  const saveState = useSaveState(saving);
+
   if (loading) {
     return (
-      <Card>
-        <CardContent className="flex items-center justify-center py-10">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </CardContent>
+      <Card className="hover:shadow-sm">
+        <div className="space-y-4 p-6">
+          <Skeleton className="h-5 w-40" />
+          <Skeleton className="h-4 w-72" />
+          <Skeleton className="h-10 w-full" />
+        </div>
       </Card>
     );
   }
 
   if (!settings) {
     return (
-      <Card>
-        <CardContent className="py-6">
-          <p className="text-sm text-muted-foreground text-center">
-            Não foi possível carregar as configurações.
+      <Card className="hover:shadow-sm">
+        <div className="flex flex-col items-start gap-3 p-6">
+          <p className="text-sm text-muted-foreground">
+            Não foi possível carregar a aparência da TV. Verifique a conexão e tente de novo.
           </p>
-        </CardContent>
+          <Button variant="outline" size="sm" onClick={() => { setLoading(true); loadSettings(); }}>
+            Tentar de novo
+          </Button>
+        </div>
       </Card>
     );
   }
 
   return (
-    <Card className="border-0 shadow-xl bg-card/70 backdrop-blur-md overflow-hidden rounded-2xl">
-      <CardHeader>
-        <div className="flex items-center gap-2">
-          <div className="bg-primary/10 p-2 rounded-lg">
-            <Palette className="h-5 w-5 text-primary" />
-          </div>
-          <CardTitle className="text-xl font-bold tracking-tight">Estilo e Mensagens</CardTitle>
-        </div>
-        <CardDescription>
-          Personalize o visual e as mensagens fixas do seu slideshow.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Theme Selection */}
-        <div className="space-y-3">
-          <Label className="text-sm font-medium flex items-center gap-2">
-            <Sun className="h-4 w-4" /> Tema Visual
-          </Label>
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              onClick={() => saveSettings({ theme: 'light' })}
-              className={`flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all ${
-                settings.theme === 'light' 
-                  ? 'border-primary bg-primary/5 text-primary' 
-                  : 'border-muted bg-muted/20 text-muted-foreground hover:border-muted-foreground/30'
-              }`}
-            >
-              <Sun className="h-6 w-6" />
-              <span className="text-xs font-bold uppercase tracking-wider">Claro</span>
-            </button>
-            <button
-              onClick={() => saveSettings({ theme: 'dark' })}
-              className={`flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all ${
-                settings.theme === 'dark' 
-                  ? 'border-primary bg-primary/5 text-primary' 
-                  : 'border-muted bg-muted/20 text-muted-foreground hover:border-muted-foreground/30'
-              }`}
-            >
-              <Moon className="h-6 w-6" />
-              <span className="text-xs font-bold uppercase tracking-wider">Noturno</span>
-            </button>
-          </div>
-        </div>
+    <SettingsSection
+      title="Aparência da TV"
+      description="Como o slideshow aparece na tela da loja. Não muda o tema deste painel."
+      status={saveState}
+    >
+      <SettingRow
+        label="Tema da TV"
+        description="Cor de fundo dos relógios, avisos e letreiro na TV."
+      >
+        <ToggleGroup
+          type="single"
+          value={settings.theme}
+          onValueChange={(value) => value && saveSettings({ theme: value as SlideshowSettings["theme"] })}
+          aria-label="Tema da TV"
+          className="grid grid-cols-2 gap-2"
+        >
+          <ToggleGroupItem
+            value="light"
+            className="h-10 gap-2 border border-input data-[state=on]:border-primary data-[state=on]:bg-primary/5 data-[state=on]:text-foreground"
+          >
+            <Sun className="h-4 w-4" /> Claro
+          </ToggleGroupItem>
+          <ToggleGroupItem
+            value="dark"
+            className="h-10 gap-2 border border-input data-[state=on]:border-primary data-[state=on]:bg-primary/5 data-[state=on]:text-foreground"
+          >
+            <Moon className="h-4 w-4" /> Noturno
+          </ToggleGroupItem>
+        </ToggleGroup>
+      </SettingRow>
 
-        {/* Custom Message */}
-        <div className="space-y-3 pt-4 border-t">
-          <Label className="text-sm font-medium flex items-center gap-2">
-            <MessageSquare className="h-4 w-4" /> Mensagem em Movimento (Rodapé)
-          </Label>
-          <Input
-            value={settings.customMessage || ""}
-            onChange={(e) => setSettings({ ...settings, customMessage: e.target.value })}
-            onBlur={() => saveSettings({ customMessage: settings.customMessage })}
-            placeholder="Ex: Oferta especial: 20% de desconto!"
-            className="w-full bg-background/50 border-muted-foreground/20 focus:border-primary/50 transition-all rounded-xl"
-          />
-          <p className="text-[10px] text-muted-foreground italic">
-            * A mensagem aparecerá como um letreiro deslizante na parte inferior da tela.
-          </p>
-        </div>
-
-        {saving && (
-          <div className="flex items-center justify-end text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            Salvando...
-          </div>
-        )}
-      </CardContent>
-    </Card>
+      <SettingRow
+        label="Letreiro no rodapé"
+        htmlFor="custom-message"
+        description="Texto que passa deslizando na parte de baixo da TV. Deixe vazio para não mostrar."
+      >
+        <Input
+          id="custom-message"
+          value={settings.customMessage || ""}
+          onChange={(e) => setSettings({ ...settings, customMessage: e.target.value })}
+          onBlur={() => saveSettings({ customMessage: settings.customMessage })}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+          }}
+          placeholder="Ex.: Aceitamos Pix e cartão"
+        />
+      </SettingRow>
+    </SettingsSection>
   );
 };

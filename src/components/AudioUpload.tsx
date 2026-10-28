@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { Upload, Music } from "lucide-react";
+import { Loader2, Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { AudioTrack } from "@/types/slideshow";
@@ -117,11 +117,11 @@ export const AudioUpload = ({ onAudiosUploaded }: AudioUploadProps) => {
       onDrop={handleDrop}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
-      className={`relative border-2 border-dashed rounded-lg p-5 transition-colors cursor-pointer ${
-        isDragging 
-          ? 'border-primary bg-primary/5 scale-[0.99] shadow-inner' 
-          : 'border-muted-foreground/20 hover:border-primary/40 hover:bg-primary/5 hover:shadow-md'
-      }`}
+      className={`relative cursor-pointer rounded-lg border border-dashed px-4 py-3 transition-colors focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background ${
+        isDragging
+          ? 'border-primary bg-primary/5'
+          : 'border-input bg-card hover:border-foreground/30 hover:bg-muted/40'
+      } ${isUploading ? 'pointer-events-none' : ''}`}
     >
       <input
         type="file"
@@ -129,33 +129,27 @@ export const AudioUpload = ({ onAudiosUploaded }: AudioUploadProps) => {
         accept="audio/*"
         aria-label="Adicionar músicas"
         onChange={(e) => e.target.files && handleFiles(e.target.files)}
-        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+        className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
         disabled={isUploading}
       />
-      
-      <div className="flex items-center gap-4">
-        <div className="flex shrink-0 justify-center">
-          {isUploading ? (
-            <div className="w-full max-w-xs space-y-3">
-              <div className="h-12 w-12 mx-auto animate-spin rounded-full border-4 border-primary border-t-transparent" />
-              <p className="text-sm font-medium">Enviando {uploadCurrent}/{uploadTotal}...</p>
-              <Progress value={progressPercent} className="h-2" />
-            </div>
-          ) : (
-            <Music className="h-7 w-7 text-primary" />
-          )}
-        </div>
-        
-        {!isUploading && (
-          <div className="min-w-0">
-            <h3 className="text-sm font-semibold mb-1">Adicionar músicas</h3>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Upload className="h-4 w-4" />
-              <span>MP3, WAV, OGG</span>
-            </div>
+
+      {isUploading ? (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+            <p className="text-sm font-medium tabular-nums">Enviando {uploadCurrent} de {uploadTotal}…</p>
           </div>
-        )}
-      </div>
+          <Progress value={progressPercent} className="h-1.5" />
+        </div>
+      ) : (
+        <div className="flex items-center gap-3">
+          <Upload className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <p className="text-sm">
+            <span className="font-medium">Adicionar músicas</span>
+            <span className="text-muted-foreground"> · arraste aqui ou clique · MP3, WAV, OGG</span>
+          </p>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
-import { Plus, Trash2, Music, ListMusic, Edit2, Check, X } from "lucide-react";
+import { Plus, Music, ListMusic, Edit2, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { Playlist, AudioTrack } from "@/types/slideshow";
@@ -212,34 +212,40 @@ export const PlaylistManager = ({ onPlaylistSelect, selectedPlaylistId }: Playli
       </div>
 
       {/* Playlist list */}
-      <div className="space-y-3">
-        {playlists.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            <ListMusic className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <p>Nenhuma playlist criada ainda.</p>
+      {playlists.length === 0 ? (
+          <div className="rounded-lg border border-dashed px-6 py-8 text-center">
+            <ListMusic className="mx-auto mb-2 h-6 w-6 text-muted-foreground" />
+            <p className="text-sm font-medium">Nenhuma playlist ainda</p>
+            <p className="mt-1 text-sm text-muted-foreground">Dê um nome acima e escolha as músicas de cada horário ou ocasião.</p>
           </div>
         ) : (
+      <ul className="divide-y overflow-hidden rounded-lg border bg-card shadow-sm">
+        {
           playlists.map((playlist) => {
             const trackCount = playlistTracks[playlist.id]?.length || 0;
             const isExpanded = expandedPlaylist === playlist.id;
             const isSelected = selectedPlaylistId === playlist.id;
 
             return (
-              <Card
+              <li
                 key={playlist.id}
-                className={`p-4 rounded-xl border-0 shadow-sm transition-all ${
-                  isSelected ? "ring-2 ring-primary bg-primary/5" : "bg-card/50 backdrop-blur-sm"
-                }`}
+                className={`px-3 py-2.5 sm:px-4 ${isSelected ? "bg-primary/5" : ""}`}
               >
                 <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => onPlaylistSelect?.(isSelected ? null : playlist.id)}
-                    className={`p-2 rounded-lg ${
-                      isSelected ? "bg-primary text-primary-foreground" : "bg-muted"
-                    }`}
-                  >
-                    <ListMusic className="h-5 w-5" />
-                  </button>
+                  {onPlaylistSelect ? (
+                    <Button
+                      size="sm"
+                      variant={isSelected ? "default" : "outline"}
+                      onClick={() => onPlaylistSelect(isSelected ? null : playlist.id)}
+                      aria-pressed={isSelected}
+                      className="h-8 shrink-0 gap-1.5"
+                    >
+                      <ListMusic className="h-4 w-4" />
+                      {isSelected ? "Tocando" : "Usar"}
+                    </Button>
+                  ) : (
+                    <ListMusic className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                  )}
 
                   <div className="flex-1 min-w-0">
                     {editingId === playlist.id ? (
@@ -262,8 +268,8 @@ export const PlaylistManager = ({ onPlaylistSelect, selectedPlaylistId }: Playli
                       </div>
                     ) : (
                       <>
-                        <p className="font-medium truncate">{playlist.name}</p>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="truncate text-sm font-medium">{playlist.name}</p>
+                        <p className="text-xs tabular-nums text-muted-foreground">
                           {trackCount} música{trackCount !== 1 ? "s" : ""}
                         </p>
                       </>
@@ -275,35 +281,40 @@ export const PlaylistManager = ({ onPlaylistSelect, selectedPlaylistId }: Playli
                       <Button
                         size="icon"
                         variant="ghost"
+                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
                         onClick={() => setExpandedPlaylist(isExpanded ? null : playlist.id)}
+                        aria-label={`Escolher músicas de ${playlist.name}`}
+                        aria-expanded={isExpanded}
+                        title="Escolher músicas"
                       >
                         <Music className="h-4 w-4" />
                       </Button>
                       <Button
                         size="icon"
                         variant="ghost"
+                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
                         onClick={() => {
                           setEditingId(playlist.id);
                           setEditingName(playlist.name);
                         }}
+                        aria-label={`Renomear ${playlist.name}`}
+                        title="Renomear"
                       >
                         <Edit2 className="h-4 w-4" />
                       </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="text-destructive hover:text-destructive"
-                        onClick={() => deletePlaylist(playlist.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <ConfirmDeleteButton
+                        itemName={playlist.name}
+                        description="A playlist é apagada. As músicas continuam na biblioteca."
+                        confirmLabel="Excluir playlist"
+                        onConfirm={() => deletePlaylist(playlist.id)}
+                      />
                     </div>
                   )}
                 </div>
 
                 {/* Expanded track selection */}
                 {isExpanded && (
-                  <div className="mt-4 pt-4 border-t space-y-2 max-h-60 overflow-y-auto">
+                  <div className="mt-3 max-h-60 space-y-0.5 overflow-y-auto border-t pt-3">
                     {allTracks.length === 0 ? (
                       <p className="text-sm text-muted-foreground text-center py-4">
                         Nenhuma música disponível. Faça upload primeiro.
@@ -314,7 +325,7 @@ export const PlaylistManager = ({ onPlaylistSelect, selectedPlaylistId }: Playli
                         return (
                           <div
                             key={track.id}
-                            className="flex items-center gap-3 p-2 rounded hover:bg-muted cursor-pointer"
+                            className="flex cursor-pointer items-center gap-3 rounded-md px-2 py-1.5 text-sm hover:bg-muted"
                             onClick={() => toggleTrackInPlaylist(playlist.id, track.id)}
                           >
                             <Checkbox checked={isInPlaylist} />
@@ -326,11 +337,11 @@ export const PlaylistManager = ({ onPlaylistSelect, selectedPlaylistId }: Playli
                     )}
                   </div>
                 )}
-              </Card>
+              </li>
             );
-          })
+          })}
+      </ul>
         )}
-      </div>
     </div>
   );
 };

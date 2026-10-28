@@ -126,6 +126,82 @@
   }
 }
 
+/* ============================================================
+   DASHBOARD THEME — applied to <html> while /dashboard is mounted,
+   so the TV routes keep their own look. Portals (dialogs, menus)
+   inherit it because the class sits on the root element.
+   ============================================================ */
+@layer base {
+  .theme-dashboard {
+    --background: 220 20% 98%;
+    --foreground: 222 24% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 24% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 24% 11%;
+    --primary: 350 78% 42%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 350 78% 37%;
+    --secondary: 220 14% 95%;
+    --secondary-foreground: 222 24% 11%;
+    --muted: 220 14% 95%;
+    --muted-foreground: 220 9% 40%;
+    --accent: 220 14% 94%;
+    --accent-foreground: 222 24% 11%;
+    --destructive: 0 72% 45%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 152 62% 32%;
+    --success-foreground: 0 0% 100%;
+    --border: 220 13% 89%;
+    --input: 220 13% 84%;
+    --ring: 350 78% 42%;
+    --radius: 0.5rem;
+    --sidebar-background: 220 16% 96%;
+    --sidebar-border: 220 13% 89%;
+
+    font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+    color-scheme: light;
+  }
+
+  .theme-dashboard.dark {
+    --background: 222 16% 8%;
+    --foreground: 220 14% 94%;
+    --card: 222 14% 11%;
+    --card-foreground: 220 14% 94%;
+    --popover: 222 14% 12%;
+    --popover-foreground: 220 14% 94%;
+    --primary: 352 72% 50%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 352 72% 45%;
+    --secondary: 222 12% 17%;
+    --secondary-foreground: 220 14% 94%;
+    --muted: 222 12% 16%;
+    --muted-foreground: 220 9% 66%;
+    --accent: 222 12% 17%;
+    --accent-foreground: 220 14% 94%;
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 152 55% 48%;
+    --success-foreground: 222 16% 8%;
+    --border: 222 10% 19%;
+    --input: 222 10% 24%;
+    --ring: 352 72% 58%;
+    --sidebar-background: 222 16% 6.5%;
+    --sidebar-border: 222 10% 17%;
+    color-scheme: dark;
+  }
+
+  .theme-dashboard ::selection {
+    background: hsl(var(--primary) / 0.18);
+  }
+
+  .theme-dashboard body {
+    background: hsl(var(--background));
+  }
+}
+
 @layer base {
   * {
     @apply border-border;

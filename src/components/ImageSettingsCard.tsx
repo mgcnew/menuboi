@@ -1,11 +1,10 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Image as ImageIcon, Timer, Calendar, Zap } from "lucide-react";
+import { Info } from "lucide-react";
 
-import { TransitionType, TRANSITION_OPTIONS, DAY_OPTIONS, DayOfWeek } from "@/types/slideshow";
+import { TransitionType, TRANSITION_OPTIONS, DAY_OPTIONS } from "@/types/slideshow";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Button } from "@/components/ui/button";
+import { CommitNumberInput, SettingRow, SettingsSection } from "@/components/SettingsSection";
 
 interface ImageSettingsCardProps {
   transitionTime: number;
@@ -16,136 +15,109 @@ interface ImageSettingsCardProps {
   onGlobalDisplayDaysChange: (days: string[] | null) => void;
 }
 
-export const ImageSettingsCard = ({ 
-  transitionTime, 
+export const ImageSettingsCard = ({
+  transitionTime,
   onTransitionTimeChange,
   globalTransitionType,
   onGlobalTransitionTypeChange,
   globalDisplayDays,
   onGlobalDisplayDaysChange
 }: ImageSettingsCardProps) => {
-  const allDaysSelected = globalDisplayDays === null;
+  const allDaysSelected = globalDisplayDays === null || globalDisplayDays.length === DAY_OPTIONS.length;
+  const selectedDays = allDaysSelected ? DAY_OPTIONS.map(d => d.value) : globalDisplayDays;
 
-  const handleToggleAllDays = (checked: boolean) => {
-    if (checked) {
-      onGlobalDisplayDaysChange(null);
-    } else {
-      onGlobalDisplayDaysChange(DAY_OPTIONS.map(d => d.value));
-    }
+  const handleDaysChange = (days: string[]) => {
+    // At least one day must stay selected
+    if (days.length === 0) return;
+    onGlobalDisplayDaysChange(days.length === DAY_OPTIONS.length ? null : days);
   };
 
-  const handleToggleDay = (day: DayOfWeek, checked: boolean) => {
-    if (allDaysSelected) {
-      if (!checked) {
-        onGlobalDisplayDaysChange(DAY_OPTIONS.map(d => d.value).filter(d => d !== day));
-      }
-      return;
-    }
-    
-    if (checked) {
-      const newDays = [...(globalDisplayDays || []), day];
-      if (newDays.length === 7) {
-        onGlobalDisplayDaysChange(null);
-      } else {
-        onGlobalDisplayDaysChange(newDays);
-      }
-    } else {
-      const newDays = (globalDisplayDays || []).filter(d => d !== day);
-      onGlobalDisplayDaysChange(newDays.length > 0 ? newDays : [DAY_OPTIONS[0].value]);
-    }
-  };
   return (
-    <Card className="border-0 shadow-xl bg-card/70 backdrop-blur-md overflow-hidden rounded-2xl">
-      <CardHeader>
-        <div className="flex items-center gap-2">
-          <div className="bg-primary/10 p-2 rounded-lg">
-            <ImageIcon className="h-5 w-5 text-primary" />
-          </div>
-          <CardTitle className="text-xl font-bold tracking-tight">Imagens e Vídeos</CardTitle>
-        </div>
-        <CardDescription>
-          Controle o ritmo da exibição das mídias no slideshow.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
+    <SettingsSection
+      title="Exibição das mídias"
+      description="Ritmo e agenda do slideshow na TV."
+    >
+      <div className="flex gap-3 py-4 text-sm text-muted-foreground">
+        <Info className="mt-0.5 h-4 w-4 shrink-0" />
+        <p>
+          Estas opções valem para <span className="font-medium text-foreground">todas as mídias</span> e
+          substituem o que foi ajustado em cada uma. Para mudar só uma mídia, use o botão de ajustes no card dela.
+        </p>
+      </div>
+
+      <SettingRow
+        label="Tempo na tela"
+        htmlFor="transition-time"
+        description="Quanto tempo cada imagem fica na TV. Recomendado: 10 a 15 segundos. Vídeos seguem a própria duração."
+      >
+        <CommitNumberInput
+          id="transition-time"
+          value={transitionTime}
+          min={5}
+          max={60}
+          unit="segundos"
+          onCommit={onTransitionTimeChange}
+        />
+      </SettingRow>
+
+      <SettingRow
+        label="Dias de exibição"
+        description="Dias da semana em que as mídias aparecem na TV."
+      >
         <div className="space-y-2">
-          <Label htmlFor="transition-time" className="text-sm font-medium flex items-center gap-2">
-            <Timer className="h-4 w-4" /> Tempo entre imagens
-          </Label>
-          <div className="flex items-center gap-2">
-            <Input
-              id="transition-time"
-              type="number"
-              min={5}
-              max={60}
-              value={transitionTime}
-              onChange={(e) => onTransitionTimeChange(Math.max(5, parseInt(e.target.value) || 5))}
-              className="w-24"
-            />
-            <span className="text-sm text-muted-foreground">segundos</span>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Recomendado: 10–15 segundos. Vale para imagens estáticas — vídeos seguem sua própria duração.
-          </p>
-        </div>
-
-        <div className="space-y-2 pt-4 border-t">
-          <Label className="flex items-center gap-2">
-            <Calendar className="h-4 w-4" /> Dias de Exibição Global
-          </Label>
-          <div className="flex items-center gap-2 mb-2">
-            <Checkbox
-              id="global-all-days"
-              checked={allDaysSelected}
-              onCheckedChange={(checked) => handleToggleAllDays(!!checked)}
-            />
-            <label htmlFor="global-all-days" className="text-sm cursor-pointer">
-              Todos os dias
-            </label>
-          </div>
-          <div className="grid grid-cols-4 gap-2">
-            {DAY_OPTIONS.map((day) => (
-              <div key={day.value} className="flex items-center gap-1.5">
-                <Checkbox
-                  id={`global-day-${day.value}`}
-                  checked={allDaysSelected || (globalDisplayDays || []).includes(day.value)}
-                  onCheckedChange={(checked) => handleToggleDay(day.value, !!checked)}
-                />
-                <label htmlFor={`global-day-${day.value}`} className="text-sm cursor-pointer">
-                  {day.short}
-                </label>
-              </div>
-            ))}
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Aplica-se a todas as imagens do slideshow.
-          </p>
-        </div>
-
-        <div className="space-y-2 pt-4 border-t">
-          <Label className="flex items-center gap-2">
-            <Zap className="h-4 w-4" /> Efeito de Transição Global
-          </Label>
-          <Select 
-            value={globalTransitionType} 
-            onValueChange={(value: TransitionType) => onGlobalTransitionTypeChange(value)}
+          <ToggleGroup
+            type="multiple"
+            value={selectedDays}
+            onValueChange={handleDaysChange}
+            aria-label="Dias de exibição"
+            className="grid grid-cols-7 gap-1"
           >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {TRANSITION_OPTIONS.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <p className="text-xs text-muted-foreground">
-            Este efeito será aplicado entre todos os slides (imagens).
-          </p>
+            {DAY_OPTIONS.map((day) => (
+              <ToggleGroupItem
+                key={day.value}
+                value={day.value}
+                aria-label={day.label}
+                size="sm"
+                className="h-9 border border-input px-0 text-xs text-muted-foreground data-[state=on]:border-foreground data-[state=on]:bg-foreground data-[state=on]:font-semibold data-[state=on]:text-background data-[state=on]:hover:bg-foreground/90 data-[state=on]:hover:text-background"
+              >
+                {day.short}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+          {!allDaysSelected && (
+            <Button
+              variant="link"
+              size="sm"
+              className="h-auto px-0 text-xs"
+              onClick={() => onGlobalDisplayDaysChange(null)}
+            >
+              Voltar para todos os dias
+            </Button>
+          )}
         </div>
-      </CardContent>
-    </Card>
+      </SettingRow>
+
+      <SettingRow
+        label="Efeito de transição"
+        htmlFor="transition-type"
+        description="Como uma imagem dá lugar à próxima."
+      >
+        <Select
+          value={globalTransitionType}
+          onValueChange={(value: TransitionType) => onGlobalTransitionTypeChange(value)}
+        >
+          <SelectTrigger id="transition-type">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {TRANSITION_OPTIONS.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </SettingRow>
+    </SettingsSection>
   );
 };

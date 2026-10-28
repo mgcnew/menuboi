@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { Pagination } from "@/components/Pagination";
 import { Music, Trash2, GripVertical, CheckSquare, Square, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { AudioTrack } from "@/types/slideshow";
 import {
   DndContext,
@@ -22,6 +21,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { AudioPreviewControls } from "@/components/AudioPreviewControls";
+import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
 
 interface AudioGridProps {
   audios: AudioTrack[];
@@ -61,71 +61,59 @@ const SortableAudio = ({
   };
 
   return (
-    <div ref={setNodeRef} style={style}>
-      <Card
-        className={`p-4 border shadow-sm hover:shadow-md transition-all cursor-pointer rounded-xl ${
-          isSelected ? "ring-2 ring-primary bg-primary/5 border-primary/50 shadow-primary/10" : "bg-card/50 backdrop-blur-sm"
-        }`}
-        onClick={() => selectionMode && onToggleSelect(audio.id)}
-      >
-        <div className="flex items-center gap-3">
-          {selectionMode ? (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggleSelect(audio.id);
-              }}
-              className="text-primary"
-            >
-              {isSelected ? (
-                <CheckSquare className="h-5 w-5" />
-              ) : (
-                <Square className="h-5 w-5" />
-              )}
-            </button>
-          ) : (
-            <button
-              className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground"
-              {...attributes}
-              {...listeners}
-            >
-              <GripVertical className="h-5 w-5" />
-            </button>
-          )}
+    <li
+      ref={setNodeRef}
+      style={style}
+      className={`flex items-center gap-3 px-3 py-2.5 transition-colors sm:px-4 ${
+        selectionMode ? "cursor-pointer" : ""
+      } ${isSelected ? "bg-primary/5" : "hover:bg-muted/40"}`}
+      onClick={() => selectionMode && onToggleSelect(audio.id)}
+    >
+      {selectionMode ? (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleSelect(audio.id);
+          }}
+          className={isSelected ? "text-primary" : "text-muted-foreground"}
+          aria-label={isSelected ? `Desmarcar ${audio.name}` : `Marcar ${audio.name}`}
+          aria-pressed={isSelected}
+        >
+          {isSelected ? <CheckSquare className="h-5 w-5" /> : <Square className="h-5 w-5" />}
+        </button>
+      ) : (
+        <button
+          className="cursor-grab touch-none text-muted-foreground hover:text-foreground active:cursor-grabbing"
+          aria-label={`Mover ${audio.name}`}
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className="h-4 w-4" />
+        </button>
+      )}
 
-          <div className="flex-shrink-0">
-            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shadow-inner">
-              <Music className="h-6 w-6 text-primary" />
-            </div>
-          </div>
+      <span className="w-6 shrink-0 text-right text-xs tabular-nums text-muted-foreground">
+        {audio.order + 1}
+      </span>
 
-          <div className="flex-1 min-w-0">
-            <p className="font-medium truncate">{audio.name}</p>
-            <p className="text-sm text-muted-foreground">
-              Ordem: {audio.order + 1}
-            </p>
-          </div>
+      <p className="min-w-0 flex-1 truncate text-sm font-medium">{audio.name}</p>
 
-          {!selectionMode && (
-            <>
-              <AudioPreviewControls
-                bucket="audio-tracks"
-                filePath={audio.url}
-                fileName={audio.name}
-              />
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => onDelete(audio.id)}
-                className="text-destructive hover:text-destructive hover:bg-destructive/10"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </>
-          )}
+      {!selectionMode && (
+        <div className="flex shrink-0 items-center gap-1">
+          <AudioPreviewControls
+            bucket="audio-tracks"
+            filePath={audio.url}
+            fileName={audio.name}
+          />
+          <ConfirmDeleteButton
+            itemName={audio.name}
+            description="A música sai da programação e o arquivo é apagado. Não dá para desfazer."
+            confirmLabel="Excluir música"
+            onConfirm={() => onDelete(audio.id)}
+          />
         </div>
-      </Card>
-    </div>
+      )}
+    </li>
   );
 };
 
@@ -214,7 +202,12 @@ export const AudioGrid = ({
   return (
     <div className="space-y-4">
       {/* Toolbar */}
-      <div className="flex items-center justify-between gap-2 flex-wrap">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm text-muted-foreground">
+          {selectionMode
+            ? `${selectedIds.size} de ${audios.length} selecionadas`
+            : `${audios.length} ${audios.length === 1 ? "música" : "músicas"} · arraste pela alça para ordenar`}
+        </p>
         <div className="flex items-center gap-2">
           {!selectionMode ? (
             <Button
@@ -228,7 +221,7 @@ export const AudioGrid = ({
           ) : (
             <>
               <Button variant="outline" size="sm" onClick={selectAll}>
-                Selecionar Todos
+                Selecionar todas
               </Button>
               <Button variant="ghost" size="sm" onClick={clearSelection}>
                 <X className="h-4 w-4 mr-1" />
@@ -236,18 +229,17 @@ export const AudioGrid = ({
               </Button>
             </>
           )}
+          {selectionMode && selectedIds.size > 0 && (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleMultiDelete}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Excluir ({selectedIds.size})
+            </Button>
+          )}
         </div>
-
-        {selectionMode && selectedIds.size > 0 && (
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={handleMultiDelete}
-          >
-            <Trash2 className="h-4 w-4 mr-2" />
-            Excluir ({selectedIds.size})
-          </Button>
-        )}
       </div>
 
       {/* Audio List */}
@@ -260,7 +252,7 @@ export const AudioGrid = ({
           items={pagedAudios.map((a) => a.id)}
           strategy={verticalListSortingStrategy}
         >
-          <div className="space-y-3">
+          <ul className="divide-y overflow-hidden rounded-lg border bg-card shadow-sm">
             {pagedAudios.map((audio) => (
               <SortableAudio
                 key={audio.id}
@@ -271,7 +263,7 @@ export const AudioGrid = ({
                 selectionMode={selectionMode}
               />
             ))}
-          </div>
+          </ul>
         </SortableContext>
       </DndContext>
 
