@@ -721,7 +721,7 @@ const Dashboard = () => {
             ? 'bg-card text-foreground shadow-sm ring-1 ring-border'
             : 'text-muted-foreground hover:bg-accent hover:text-foreground'}`}
       >
-        <Icon className={`h-4 w-4 ${current ? 'text-primary' : ''}`} />
+        <Icon className={`h-4 w-4 ${current ? 'text-primary' : ''} ${compact ? 'max-[359px]:hidden' : ''}`} />
         {item.label}
         {!compact && item.count !== undefined && (
           <span className="ml-auto text-xs tabular-nums text-muted-foreground">{item.count}</span>
@@ -771,8 +771,8 @@ const Dashboard = () => {
     </Button>
   );
 
-  const subTabsList = "h-auto w-full justify-start gap-6 overflow-x-auto rounded-none border-b bg-transparent p-0 shadow-none";
-  const subTabsTrigger = "-mb-px gap-2 rounded-none border-b-2 border-transparent px-0 pb-3 pt-1 text-sm font-medium text-muted-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none";
+  const subTabsList = "h-auto w-full justify-start gap-5 overflow-x-auto max-[359px]:gap-3 sm:gap-6 rounded-none border-b bg-transparent p-0 shadow-none";
+  const subTabsTrigger = "-mb-px gap-2 [&>svg]:hidden sm:[&>svg]:block rounded-none border-b-2 border-transparent px-0 pb-3 pt-1 text-sm font-medium text-muted-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none";
 
   const formatCycle = (seconds: number) => {
     if (seconds < 60) return `${seconds} s`;
@@ -853,7 +853,7 @@ const Dashboard = () => {
 
               {images.length > 0 && (
                 <section aria-labelledby="today-heading" className="mb-10 overflow-hidden rounded-lg border bg-card shadow-sm">
-                  <div className="grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+                  <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
                     <div className="border-b p-4 lg:border-b-0 lg:border-r">
                       <SlideshowPreview images={images} className="border-0" onCurrentChange={setPreviewId} />
                       <p className="mt-2 px-1 text-xs text-muted-foreground">

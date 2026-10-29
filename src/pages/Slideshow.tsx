@@ -30,6 +30,9 @@ const Slideshow = () => {
 
   const [allImages, setAllImages] = useState<MenuItem[]>([]);
   const [images, setImages] = useState<MenuItem[]>([]);
+  // Só vira true depois da primeira busca: evita piscar a tela de "nenhuma imagem" ao abrir
+  const [imagesReady, setImagesReady] = useState(false);
+  const imagesFetchedRef = useRef(false);
   const [audios, setAudios] = useState<AudioTrack[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [announcementRequest, setAnnouncementRequest] = useState<{ seq: number; announcementId?: string }>();
@@ -66,6 +69,7 @@ const Slideshow = () => {
     );
     setImages(filtered);
     setCurrentIndex(prev => filtered.length > 0 ? prev % filtered.length : 0);
+    if (imagesFetchedRef.current) setImagesReady(true);
   }, [allImages, dayTick]);
 
   // Schedule re-filter at next midnight (00:00:01)
@@ -141,6 +145,7 @@ const Slideshow = () => {
             displayDays: img.display_days || null,
           };
         });
+        imagesFetchedRef.current = true;
         setAllImages(formatted);
       }
     } catch (e) { console.error("[Slideshow] Images load error:", e); }
@@ -445,6 +450,15 @@ const Slideshow = () => {
       announcementRequest={announcementRequest}
     />
   );
+
+  // Ainda carregando: só o fundo, sem texto
+  if (!imagesReady) {
+    return (
+      <div className={`min-h-screen ${getThemeClasses(settings.theme)}`} style={{ cursor: "none" }}>
+        {audioPlayer}
+      </div>
+    );
+  }
 
   // Empty state
   if (images.length === 0) {
