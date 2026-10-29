@@ -186,10 +186,13 @@ export type Database = {
           created_at: string
           custom_message: string | null
           custom_message_position: string
+          duck_fade_down_ms: number | null
+          duck_fade_up_ms: number | null
           id: string
           logo_position: string
           logo_url: string | null
           music_duck_volume: number | null
+          music_shuffle: boolean | null
           music_volume: number | null
           show_clock: boolean
           show_date: boolean
@@ -207,10 +210,13 @@ export type Database = {
           created_at?: string
           custom_message?: string | null
           custom_message_position?: string
+          duck_fade_down_ms?: number | null
+          duck_fade_up_ms?: number | null
           id?: string
           logo_position?: string
           logo_url?: string | null
           music_duck_volume?: number | null
+          music_shuffle?: boolean | null
           music_volume?: number | null
           show_clock?: boolean
           show_date?: boolean
@@ -228,10 +234,13 @@ export type Database = {
           created_at?: string
           custom_message?: string | null
           custom_message_position?: string
+          duck_fade_down_ms?: number | null
+          duck_fade_up_ms?: number | null
           id?: string
           logo_position?: string
           logo_url?: string | null
           music_duck_volume?: number | null
+          music_shuffle?: boolean | null
           music_volume?: number | null
           show_clock?: boolean
           show_date?: boolean

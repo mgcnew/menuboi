@@ -8,6 +8,7 @@ import { AudioPlayer } from "@/components/AudioPlayer";
 import { InfoWidget } from "@/components/InfoWidget";
 import { ChevronLeft, ChevronRight, Pause, Play, RefreshCw, Wifi, WifiOff } from "lucide-react";
 import { playTransition, TRANSITION_DURATION_MS } from "@/lib/transitions";
+import { PLAY_ANNOUNCEMENT_EVENT, PlayAnnouncementPayload, TV_CONTROL_CHANNEL } from "@/lib/tv-control";
 
 const createDefaultSettings = (): SlideshowSettings => ({
   id: "default",
@@ -31,6 +32,7 @@ const Slideshow = () => {
   const [images, setImages] = useState<MenuItem[]>([]);
   const [audios, setAudios] = useState<AudioTrack[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [announcementRequest, setAnnouncementRequest] = useState<{ seq: number; announcementId?: string }>();
   const [settings, setSettings] = useState<SlideshowSettings>(createDefaultSettings());
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
@@ -46,7 +48,6 @@ const Slideshow = () => {
 
   const indexRef = useRef(currentIndex);
   const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
-  const reloadDebounceRef = useRef<ReturnType<typeof setTimeout>>();
   const autoAdvanceRef = useRef<ReturnType<typeof setTimeout>>();
   const fallbackTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const layer0Ref = useRef<HTMLDivElement>(null);
@@ -108,17 +109,21 @@ const Slideshow = () => {
           musicVolume: row.music_volume ?? 0.45,
           announcementVolume: row.announcement_volume ?? 1.0,
           musicDuckVolume: row.music_duck_volume ?? 0.08,
+          duckFadeDownMs: row.duck_fade_down_ms ?? 900,
+          duckFadeUpMs: row.duck_fade_up_ms ?? 1600,
+          musicShuffle: row.music_shuffle ?? true,
           createdAt: new Date(row.created_at), updatedAt: new Date(row.updated_at),
         });
       }
     } catch (error) { console.error("[Slideshow] Settings error:", error); }
   }, []);
 
-  // Load data
-  const loadData = useCallback(async () => {
+  // Cada parte carrega sozinha: uma mudança no painel só busca a tabela afetada
+  const loadImages = useCallback(async () => {
     try {
       const imagesRes = await menuItemsTable()
-        .select("*").order("order_index", { ascending: true });
+        .select("id, name, file_path, order_index, created_at, display_time, transition_type, item_type, video_autoplay, video_muted, video_loop, display_days")
+        .order("order_index", { ascending: true });
 
       if (imagesRes.data) {
         const formatted = imagesRes.data.map((img: any) => {
@@ -138,7 +143,11 @@ const Slideshow = () => {
         });
         setAllImages(formatted);
       }
+    } catch (e) { console.error("[Slideshow] Images load error:", e); }
+  }, []);
 
+  const loadAudios = useCallback(async () => {
+    try {
       let audioIds: string[] | null = null;
       if (playlistId) {
         const { data: pt } = await playlistTracksTable()
@@ -147,7 +156,9 @@ const Slideshow = () => {
         if (pt && pt.length > 0) audioIds = pt.map((t: any) => t.audio_track_id);
       }
 
-      let audiosQuery = audioTracksTable().select("*").order("order_index", { ascending: true });
+      let audiosQuery = audioTracksTable()
+        .select("id, name, file_path, order_index, created_at")
+        .order("order_index", { ascending: true });
       if (audioIds) audiosQuery = audiosQuery.in("id", audioIds);
       const audiosRes = await audiosQuery;
 
@@ -161,19 +172,26 @@ const Slideshow = () => {
           order: a.order_index, uploadedAt: new Date(a.created_at),
         })));
       }
+    } catch (e) { console.error("[Slideshow] Audio load error:", e); }
+  }, [playlistId]);
 
+  const loadAnnouncements = useCallback(async () => {
+    try {
       const announcementsRes = await announcementsTable()
-        .select("*").order("order_index", { ascending: true });
+        .select("id, name, file_path, order_index, created_at")
+        .order("order_index", { ascending: true });
       if (announcementsRes.data) {
         setAnnouncements(announcementsRes.data.map((a: any) => ({
           id: a.id, url: a.file_path, name: a.name,
           order: a.order_index, uploadedAt: new Date(a.created_at),
         })));
       }
+    } catch (e) { console.error("[Slideshow] Announcements load error:", e); }
+  }, []);
 
-      await loadSettings();
-    } catch (e) { console.error("[Slideshow] Load error:", e); }
-  }, [playlistId, loadSettings]);
+  const loadData = useCallback(async () => {
+    await Promise.all([loadImages(), loadAudios(), loadAnnouncements(), loadSettings()]);
+  }, [loadImages, loadAudios, loadAnnouncements, loadSettings]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -304,33 +322,37 @@ const Slideshow = () => {
   const reconnectAttemptsRef = useRef(0);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
-  // Hot-reload data on realtime change (no page refresh)
-  const triggerFullReload = useCallback(() => {
-    clearTimeout(reloadDebounceRef.current);
-    reloadDebounceRef.current = setTimeout(() => {
-      console.log("[Slideshow] Realtime change detected, refreshing data in-place...");
-      loadData();
-    }, 800);
-  }, [loadData]);
+  // Hot-reload on realtime change (no page refresh). Debounce por loader: rajadas de
+  // eventos (ex.: upload de vários arquivos) viram uma única consulta, e uma tabela
+  // não cancela o recarregamento pendente de outra.
+  const reloadTimersRef = useRef(new Map<() => Promise<void>, ReturnType<typeof setTimeout>>());
+  const scheduleReload = useCallback((loader: () => Promise<void>, ms = 800) => {
+    const timers = reloadTimersRef.current;
+    clearTimeout(timers.get(loader));
+    timers.set(loader, setTimeout(() => {
+      timers.delete(loader);
+      loader();
+    }, ms));
+  }, []);
 
   // Real-time updates with auto-reconnect
   useEffect(() => {
-    let channel = supabase
-      .channel("slideshow-updates")
-      .on("postgres_changes", { event: "*", schema: "public", table: "menu_items" }, triggerFullReload)
-      .on("postgres_changes", { event: "*", schema: "public", table: "audio_tracks" }, triggerFullReload)
-      .on("postgres_changes", { event: "*", schema: "public", table: "announcements" }, triggerFullReload)
-      .on("postgres_changes", { event: "*", schema: "public", table: "playlist_tracks" }, triggerFullReload)
-      .on("postgres_changes", { event: "*", schema: "public", table: "slideshow_settings" }, () => {
-        clearTimeout(reloadDebounceRef.current);
-        reloadDebounceRef.current = setTimeout(loadSettings, 500);
-      });
+    const createChannel = (name: string) => supabase
+      .channel(name)
+      .on("postgres_changes", { event: "*", schema: "public", table: "menu_items" }, () => scheduleReload(loadImages))
+      .on("postgres_changes", { event: "*", schema: "public", table: "audio_tracks" }, () => scheduleReload(loadAudios))
+      .on("postgres_changes", { event: "*", schema: "public", table: "playlist_tracks" }, () => scheduleReload(loadAudios))
+      .on("postgres_changes", { event: "*", schema: "public", table: "announcements" }, () => scheduleReload(loadAnnouncements))
+      .on("postgres_changes", { event: "*", schema: "public", table: "slideshow_settings" }, () => scheduleReload(loadSettings, 500));
+
+    let channel = createChannel("slideshow-updates");
 
     const subscribe = () => {
       channel.subscribe((status) => {
         console.log("[Slideshow] Realtime status:", status);
         if (status === "SUBSCRIBED") {
           setConnectionStatus('connected');
+          // Eventos perdidos enquanto estava offline: uma única recarga completa
           if (reconnectAttemptsRef.current > 0) loadData();
           reconnectAttemptsRef.current = 0;
         } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
@@ -340,16 +362,7 @@ const Slideshow = () => {
           clearTimeout(reconnectTimerRef.current);
           reconnectTimerRef.current = setTimeout(() => {
             supabase.removeChannel(channel);
-            channel = supabase
-              .channel("slideshow-updates-" + Date.now())
-              .on("postgres_changes", { event: "*", schema: "public", table: "menu_items" }, triggerFullReload)
-              .on("postgres_changes", { event: "*", schema: "public", table: "audio_tracks" }, triggerFullReload)
-              .on("postgres_changes", { event: "*", schema: "public", table: "announcements" }, triggerFullReload)
-              .on("postgres_changes", { event: "*", schema: "public", table: "playlist_tracks" }, triggerFullReload)
-              .on("postgres_changes", { event: "*", schema: "public", table: "slideshow_settings" }, () => {
-                clearTimeout(reloadDebounceRef.current);
-                reloadDebounceRef.current = setTimeout(loadSettings, 500);
-              });
+            channel = createChannel("slideshow-updates-" + Date.now());
             subscribe();
           }, delay);
         } else if (status === "CLOSED") {
@@ -360,12 +373,26 @@ const Slideshow = () => {
 
     subscribe();
 
+    const reloadTimers = reloadTimersRef.current;
     return () => {
       supabase.removeChannel(channel);
-      clearTimeout(reloadDebounceRef.current);
+      reloadTimers.forEach(clearTimeout);
+      reloadTimers.clear();
       clearTimeout(reconnectTimerRef.current);
     };
-  }, [loadSettings, triggerFullReload]);
+  }, [loadImages, loadAudios, loadAnnouncements, loadSettings, loadData, scheduleReload]);
+
+  // Comandos do painel (ex.: "Testar locução agora") via Broadcast, sem tocar no banco
+  useEffect(() => {
+    const channel = supabase
+      .channel(TV_CONTROL_CHANNEL)
+      .on("broadcast", { event: PLAY_ANNOUNCEMENT_EVENT }, ({ payload }) => {
+        const { announcementId } = (payload ?? {}) as PlayAnnouncementPayload;
+        setAnnouncementRequest((prev) => ({ seq: (prev?.seq ?? 0) + 1, announcementId }));
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, []);
 
   // Mouse controls
   useEffect(() => {
@@ -402,10 +429,28 @@ const Slideshow = () => {
     return () => window.removeEventListener("keydown", handleKey);
   }, [images.length, loadData, advanceTo]);
 
+  // Mesma instância nos dois retornos: a música não para quando não há imagens para hoje
+  const audioPlayer = (
+    <AudioPlayer
+      key="audio"
+      tracks={audios}
+      announcements={announcements}
+      announcementIntervalMinutes={settings.announcementIntervalMinutes}
+      musicVolume={settings.musicVolume}
+      announcementVolume={settings.announcementVolume}
+      musicDuckVolume={settings.musicDuckVolume}
+      duckFadeDownMs={settings.duckFadeDownMs}
+      duckFadeUpMs={settings.duckFadeUpMs}
+      shuffleMusic={settings.musicShuffle}
+      announcementRequest={announcementRequest}
+    />
+  );
+
   // Empty state
   if (images.length === 0) {
     return (
       <div className={`min-h-screen ${getThemeClasses(settings.theme)} flex items-center justify-center`}>
+        {audioPlayer}
         <div className={`text-center ${settings.theme === "light" ? "text-gray-900" : "text-white"}`}>
           <div className="text-8xl mb-8 animate-bounce opacity-20">📱</div>
           <h1 className="text-5xl font-black mb-4 tracking-tighter">Menu Board Digital</h1>
@@ -453,14 +498,7 @@ const Slideshow = () => {
 
   return (
     <div className={`min-h-screen ${getThemeClasses(settings.theme)} relative overflow-hidden`} style={{ cursor: "none" }}>
-      <AudioPlayer 
-        tracks={audios} 
-        announcements={announcements} 
-        announcementIntervalMinutes={settings.announcementIntervalMinutes}
-        musicVolume={settings.musicVolume}
-        announcementVolume={settings.announcementVolume}
-        musicDuckVolume={settings.musicDuckVolume}
-      />
+      {audioPlayer}
       <InfoWidget settings={settings} />
 
       {/* Reload overlay - shown briefly before page reload */}

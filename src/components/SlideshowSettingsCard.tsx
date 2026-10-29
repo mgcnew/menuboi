@@ -48,6 +48,9 @@ export const SlideshowSettingsCard = () => {
           musicVolume: row.music_volume ?? 0.45,
           announcementVolume: row.announcement_volume ?? 1.0,
           musicDuckVolume: row.music_duck_volume ?? 0.08,
+          duckFadeDownMs: row.duck_fade_down_ms ?? 900,
+          duckFadeUpMs: row.duck_fade_up_ms ?? 1600,
+          musicShuffle: row.music_shuffle ?? true,
           createdAt: new Date(row.created_at),
           updatedAt: new Date(row.updated_at),
         });

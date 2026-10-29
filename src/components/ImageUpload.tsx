@@ -147,7 +147,7 @@ export const ImageUpload = ({ onImagesUploaded, compact = false }: ImageUploadPr
         
         const { data, error } = await supabase.storage
           .from('menu-images')
-          .upload(fileName, file);
+          .upload(fileName, file, { cacheControl: '31536000' });
 
         if (error) {
           console.error('Error uploading file:', error);

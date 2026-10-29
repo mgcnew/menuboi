@@ -2,17 +2,59 @@ import { useEffect, useState } from "react";
 import { DndContext, closestCenter, DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Music } from "lucide-react";
+import { GripVertical, Loader2, Music, Tv } from "lucide-react";
 import { Announcement } from "@/types/slideshow";
 import { AudioPreviewControls } from "@/components/AudioPreviewControls";
 import { Pagination } from "@/components/Pagination";
 import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+import { requestAnnouncementOnTv } from "@/lib/tv-control";
 
 interface AnnouncementGridProps {
   announcements: Announcement[];
   onAnnouncementDelete: (id: string) => void;
   onAnnouncementReorder: (announcements: Announcement[]) => void;
 }
+
+const PlayOnTvButton = ({ announcement }: { announcement: Announcement }) => {
+  const [sending, setSending] = useState(false);
+  const { toast } = useToast();
+
+  const send = async () => {
+    setSending(true);
+    try {
+      await requestAnnouncementOnTv({ announcementId: announcement.id });
+      toast({
+        title: "Locução enviada",
+        description: `"${announcement.name}" toca nas TVs abertas em alguns segundos.`,
+      });
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível falar com as TVs. Confira a conexão e tente de novo.",
+        variant: "destructive",
+      });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={send}
+      disabled={sending}
+      className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground"
+      aria-label={`Tocar ${announcement.name} agora na TV`}
+      title="Tocar agora na TV"
+    >
+      {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Tv className="h-4 w-4" />}
+    </Button>
+  );
+};
 
 const SortableAnnouncementItem = ({ 
   announcement, 
@@ -68,6 +110,7 @@ const SortableAnnouncementItem = ({
           filePath={announcement.url}
           fileName={announcement.name}
         />
+        <PlayOnTvButton announcement={announcement} />
         <ConfirmDeleteButton
           itemName={announcement.name}
           description="A locução deixa de tocar na loja e o arquivo é apagado. Não dá para desfazer."

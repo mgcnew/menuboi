@@ -23,7 +23,7 @@ export const AnnouncementUpload = ({ onAnnouncementsUploaded }: AnnouncementUplo
       
       const { data, error } = await supabase.storage
         .from('announcements')
-        .upload(fileName, file);
+        .upload(fileName, file, { cacheControl: '31536000' });
 
       if (error) {
         console.error('Error uploading to Supabase:', error);

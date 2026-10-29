@@ -23,7 +23,7 @@ export const AudioUpload = ({ onAudiosUploaded }: AudioUploadProps) => {
 
       const { error: uploadError } = await supabase.storage
         .from('audio-tracks')
-        .upload(fileName, file);
+        .upload(fileName, file, { cacheControl: '31536000' });
 
       if (uploadError) {
         console.error('Error uploading audio:', uploadError);

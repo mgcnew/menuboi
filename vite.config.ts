@@ -85,6 +85,25 @@ export default defineConfig(({ mode }) => ({
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
         runtimeCaching: [
           {
+            // Músicas e locuções: o <audio> pede trechos (Range/206), que não podem ser
+            // guardados. O player baixa o arquivo inteiro antes (warmCache) e esta regra
+            // responde os trechos a partir do cache, sem gastar egress do Storage de novo.
+            urlPattern: /^https:\/\/.*\.supabase\.co\/storage\/v1\/object\/public\/(audio-tracks|announcements)\/.*/i,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "audio-cache",
+              rangeRequests: true,
+              expiration: {
+                maxEntries: 400,
+                maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days (arquivos têm nome único)
+                purgeOnQuotaError: true
+              },
+              cacheableResponse: {
+                statuses: [200]
+              }
+            }
+          },
+          {
             urlPattern: /^https:\/\/.*\.supabase\.co\/storage\/v1\/object\/public\/.*/i,
             handler: "CacheFirst",
             options: {
