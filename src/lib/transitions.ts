@@ -1,4 +1,5 @@
 import { TransitionType } from "@/types/slideshow";
+import { isSmartTV } from "@/hooks/use-remote-navigation";
 
 type Keyframe = Record<string, string | number>;
 
@@ -75,22 +76,64 @@ const TRANSITIONS: Record<TransitionType, { enter: Keyframe[]; exit: Keyframe[] 
   },
 };
 
-const DURATION = 700;
+const DURATION = 1000; // calmo o bastante para quem está lendo o cardápio
+
+// Efeitos caros para a GPU de Smart TVs (desfoque e 3D em tela cheia): na TV viram crossfade
+const HEAVY_ON_TV: TransitionType[] = ["blur", "flip"];
+const tvMode = isSmartTV();
+
+// Animações em andamento por camada, para cancelar antes da próxima troca
+const running = new WeakMap<HTMLElement, Animation>();
+
+/**
+ * A camada que entra fica por cima e termina opaca, então a que sai não precisa
+ * sumir: mantê-la em opacidade 1 evita o "escurecido" no meio da troca, quando
+ * as duas ficavam meio transparentes e o fundo preto aparecia. Também impede que
+ * a opacidade 0 do React esconda a imagem antiga logo no início (nos deslizes, a
+ * nova entrava sobre o fundo preto em vez de empurrar a anterior).
+ */
+const holdOpacity = (frames: Keyframe[]) => frames.map((f) => ({ ...f, opacity: 1 }));
+
+const animate = (el: HTMLElement, frames: Keyframe[], options: KeyframeAnimationOptions) => {
+  running.get(el)?.cancel();
+  const anim = el.animate(frames, options);
+  running.set(el, anim);
+  return anim;
+};
 
 export const playTransition = (
   incomingEl: HTMLElement | null,
   outgoingEl: HTMLElement | null,
   type: TransitionType,
 ) => {
-  const cfg = TRANSITIONS[type] ?? TRANSITIONS.fade;
+  const effective = tvMode && HEAVY_ON_TV.includes(type) ? "crossfade" : type;
+  const cfg = TRANSITIONS[effective] ?? TRANSITIONS.crossfade;
+  // "both": aplica o primeiro quadro já antes de começar (sem piscar) e segura o
+  // último até a limpeza abaixo
   const options: KeyframeAnimationOptions = {
     duration: DURATION,
     easing: "ease-in-out",
-    fill: "forwards",
+    fill: "both",
   };
   try {
-    incomingEl?.animate(cfg.enter, options);
-    outgoingEl?.animate(cfg.exit, options);
+    const enter = incomingEl ? animate(incomingEl, cfg.enter, options) : null;
+    const exit = outgoingEl ? animate(outgoingEl, holdOpacity(cfg.exit), options) : null;
+
+    // Ao terminar, descarta as animações: o estilo inline do React (opacidade e
+    // z-index da camada) assume. Sem isso elas se acumulam a cada troca, e TVs com
+    // navegador antigo não limpam sozinhas, ficando mais lentas ao longo do dia.
+    const cleanup = () => {
+      if (incomingEl && enter && running.get(incomingEl) === enter) {
+        enter.cancel();
+        running.delete(incomingEl);
+      }
+      if (outgoingEl && exit && running.get(outgoingEl) === exit) {
+        exit.cancel();
+        running.delete(outgoingEl);
+      }
+    };
+    if (enter) enter.onfinish = cleanup;
+    else if (exit) exit.onfinish = cleanup;
   } catch (e) {
     // Fallback: ensure final visibility
     if (incomingEl) incomingEl.style.opacity = "1";
